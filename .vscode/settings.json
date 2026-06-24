@@ -1,0 +1,10 @@
+{
+  "latex-workshop.formatting.latex": "latexindent",
+  "latex-workshop.formatting.latexindent.path": "latexindent",
+  "latex-workshop.formatting.latexindent.args": [
+    "-c",
+    "%DIR%/",
+    "%TMPFILE%",
+    "-y=defaultIndent: '  ', modifyLineBreaks: {environments: {BeginStartsOnOwnLine: 1, BodyStartsOnOwnLine: 1, EndStartsOnOwnLine: 1}}"
+  ]
+}

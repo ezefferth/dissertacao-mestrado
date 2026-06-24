@@ -1,0 +1,264 @@
+
+\documentclass[12pt,twoside]{book}
+\usepackage[utf8]{inputenc} 
+\usepackage[T1]{fontenc}   
+\usepackage{lmodern} 
+\usepackage[brazil]{babel}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage[ruled]{algorithm2e}
+\renewcommand{\listalgorithmcfname}{Lista de Algoritmos}%
+\renewcommand{\algorithmcfname}{Algoritmo}%
+
+%\usepackage{subfigure}
+\usepackage{subfloat}
+
+%%% acentuação
+% \usepackage[latin1]{inputenc}
+% \usepackage[brazil]{babel}
+
+%%% bibliografia
+%\usepackage{chicago}
+\usepackage[round]{natbib}
+\bibliographystyle{apalike}
+\newcommand{\citeay}[1]{\citeauthor{#1}, \citeyear{#1}}
+
+% \usepackage[alf]{abntex2cite}
+% \bibliographystyle{abntex2-alf}
+
+\usepackage{latexsym}
+
+
+\usepackage{setspace}
+% \usepackage{mathptm}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{xspace}
+\usepackage{colortbl}
+
+\usepackage{acronym}
+%%% referencias com página \vref
+\usepackage[brazil]{varioref}
+
+%%% identa primeiro parágrafo
+\usepackage{indentfirst}
+
+%%% figuras um ao lado do outro
+\usepackage{subfig}
+
+
+%%% definir títulos de seção
+\usepackage[sf,sl,outermarks]{titlesec}
+
+
+%%% para tabelas
+\usepackage{multirow}
+
+%%% boxes
+\usepackage{fancybox}
+\usepackage{fancyvrb}
+\usepackage{color}
+
+%%% somente na versão PDF
+
+%%% Para inclusão de gráficos
+%\usepackage[pdftex]{graphicx}
+\usepackage{graphicx}
+
+%%% dimensões do documento
+\usepackage[pdftex]{geometry}
+  \geometry{a4paper,left=3cm,right=2cm,top=2.0cm,bottom=2cm,twoside}
+
+%%% cria links no arquivo .pdf
+%%% comentar as linhas na versão para impressao
+\usepackage[pdftex,pdfpagelabels,pagebackref]{hyperref}
+%\usepackage{hyperref}
+
+
+%%% propriedades do arquivo .pdf
+\hypersetup{
+    pdftitle = {},
+    pdfsubject = {},
+    pdfkeywords = {},
+    pdfauthor = {}
+    }
+
+
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,hypertexnames=false}
+
+%%fonte
+\usepackage{bookman}
+\usepackage[T1]{fontenc}
+
+%%para os numeros reais
+\usepackage{amsfonts}
+\usepackage{amsmath}
+
+\DeclareFixedFont{\numberfont}{T1}{phv}{bx}{n}{2cm}
+
+%%% redefine o formato do título
+
+
+
+\titleformat{\chapter}[display]
+  {\normalfont\Large\sffamily
+  }
+  {%\titlerule[3pt]%
+   \filright
+   \rule[32pt]{.7\linewidth}{4pt}
+   \hspace{-11pt}
+   \shadowbox{
+   \begin{minipage}{.18\linewidth}
+     \begin{center}
+       \textsc{\Large\chaptertitlename}\\
+       \vspace{1ex}
+       {\numberfont\color[gray]{0.5} \thechapter}\\
+       \vspace{1ex}
+     \end{center}
+   \end{minipage}}
+  }
+  {0pt}
+  {\filcenter
+   \Huge
+   }
+  [\hfill\rule{.8\textwidth}{0.5pt}\\
+     \vskip-1.8ex\hfill\rule{.7\textwidth}{3pt}]
+
+
+%%% macro para destacar a(s) primeira(s) letra do texto
+%%% é necessário ter a fonte courier instalada
+%
+%  um texto do tipo:
+%
+%  \begin{document}
+%    \versal{IN} THE beginning God created the heaven and the earth.  Now the
+%    earth was unformed and void, and darkness was upon the face of the
+%    deep; and the spirit of God hovered over the face of the waters.
+%  \end{document}
+%
+%  irá produzir algo como:
+%
+%  I I\  I THE beginning God  created the heaven and  the earth.
+%  I I \ I Now the earth was unformed and void, and darkness was
+%  I I  \I upon the face of the deep; and the spirit of God hov-
+%  ered over the face of the waters.
+
+%\font\largefont= pzcmi scaled 6500
+
+\newcommand{\versal}[1]{{\noindent
+    \setbox0\hbox{\largefont #1 }%
+    \count0=\ht0                   % height of versal
+    \count1=\baselineskip          % baselineskip
+    \divide\count0 by \count1      % versal height/baselineskip
+    \dimen1 = \count0\baselineskip % distance to drop versal
+    \advance\count0 by 1\relax     % no of indented lines
+    \dimen0=\wd0                   % width of versal
+    \global\hangindent\dimen0      % set indentation distance
+    \global\hangafter-\count0      % set no of indented lines
+    \hskip-\dimen0\setbox0\hbox to\dimen0{\raise-\dimen1\box0\hss}%
+    \dp0=0in\ht0=0in\box0}}
+% Backref com colocação de "Citado na página..."
+\renewcommand*{\backref}[1]{}
+\renewcommand*{\backrefalt}[4]{
+   \ifcase #1
+       Não citado no texto.
+   \or
+       Citado na página~#2.
+   \else
+       Citado nas páginas #2.
+   \fi
+}
+
+\renewcommand{\backreftwosep}{ e~}
+\renewcommand{\backreflastsep}{, e~}
+
+
+\usepackage{pgf}
+\usepackage{baseboxes}
+\usepackage{basecolor}
+
+
+\begin{document}
+
+\include{macros}
+\pagestyle{empty}
+\pagenumbering{roman}
+
+%%% insere a capa
+%%% edite os campos para título, data, orientador e nome
+
+\newcommand{\titulo}{Desenvolvimento de Sistema Embarcado para Aquisição e Transmissão de Sinais de ECG em Redes LoRaWAN }
+  
+
+\input{capa}
+
+\pagestyle{plain}
+
+
+\onehalfspacing
+
+%agradecimentos aki
+%\input{agradecimentos}
+
+\cleardoublepage
+\input{resumo}
+\cleardoublepage
+\tableofcontents
+\addcontentsline{toc}{section}{Sumário}
+\cleardoublepage
+
+\listoffigures
+\addcontentsline{toc}{section}{Lista de Figuras}
+\cleardoublepage
+
+\listoftables
+\addcontentsline{toc}{section}{Lista de Tabelas}
+\cleardoublepage
+
+
+\addcontentsline{toc}{section}{Lista de Abreviaturas}
+\cleardoublepage
+\input{acron}
+\cleardoublepage
+
+
+\listofalgorithms
+\addcontentsline{toc}{section}{Lista de Algoritmos}
+\cleardoublepage
+
+
+
+
+%%% inserir resumo
+%\cleardoublepage
+%\input{resumo}
+%\cleardoublepage
+%
+%\newpage
+
+%%% corpo do texto
+
+
+\pagenumbering{arabic}
+
+%%% inclua os seu arquivos a partir daqui
+
+\include{1_introducao}
+\include{2_conceitos}
+\include{3_met}
+\include{4_resultados}
+% \include{5_cronograma}   % removido: documento final (dissertação), não mais qualificação
+% \include{6_cotraining}
+\include{7_conclusoes}
+
+
+\appendix
+
+
+%%% arquivo .bib
+\bibliography{main}
+\addcontentsline{toc}{chapter}{Referências}
+
+
+% Set the ending of a LaTeX document
+\end{document}

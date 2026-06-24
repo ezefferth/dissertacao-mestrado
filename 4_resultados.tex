@@ -1,0 +1,105 @@
+\chapter{Resultados Preliminares}
+\label{chap:resultados}
+
+Neste capítulo são apresentados e discutidos os resultados preliminares obtidos ao longo do desenvolvimento do sistema. Os experimentos e implementações concentraram-se na construção do protótipo do dispositivo, no desenvolvimento do \textit{firmware} embarcado, na configuração da infraestrutura de rede \textit{LoRaWAN}, no desenvolvimento do aplicativo móvel, na caracterização da aquisição do sinal pelo \acs{AFE} ADS1293, na validação do fluxo de dados de ponta a ponta — do dispositivo embarcado à nuvem — e na verificação da estratégia de detecção na borda como solução para as restrições de transmissão do protocolo.
+
+
+\section{Construção do Protótipo do Dispositivo}
+\label{sec:resProtótipo}
+
+O protótipo do dispositivo de aquisição foi montado integrando os três módulos comerciais selecionados: o microcontrolador XIAO ESP32-S3, o módulo \textit{LoRa} Wio-SX1262 e o \acs{AFE} de \acs{ECG} CJMCU-1293. A interligação seguiu a pinagem \acs{SPI} descrita na Seção~\ref{sec:arqDispositivo}, com o ADS1293 conectado ao barramento \acs{SPI} principal e o Wio-SX1262 ao seu barramento dedicado, evitando conflito entre os dois periféricos. O conjunto foi alimentado por uma bateria de íons de lítio de 3,7~V, com o ADS1293 mantido em 3,3~V para respeitar o limite de tensão analógica do componente.
+
+Durante a montagem, validou-se o reconhecimento de ambos os periféricos pelo microcontrolador: o ADS1293 respondeu à configuração de registradores e passou a gerar interrupções de \textit{Data Ready} em taxa constante, enquanto o Wio-SX1262 completou com sucesso o processo de \textit{join} \acs{OTAA} na rede \textit{LoRaWAN} local. O encapsulamento mecânico definitivo, considerando ergonomia, segurança elétrica e fixação ao paciente durante a atividade física, encontra-se em fase de projeto.
+
+% FIGURA PENDENTE: fotografia do protótipo montado (XIAO ESP32-S3 + Wio-SX1262 + CJMCU-1293
+% + bateria) e, quando disponível, do encapsulamento. Salvar em assets/ e inserir aqui.
+
+
+\section{Desenvolvimento do Firmware Embarcado}
+\label{sec:resFirmware}
+
+O \textit{firmware} foi desenvolvido e encontra-se funcional em todas as suas etapas de processamento. A aquisição orientada a interrupção, disparada pelo sinal \acs{DRDY}, mostrou-se estável na taxa efetiva de 640 SPS (Seção~\ref{sec:resTaxa}), com leitura simultânea das três derivações pelo barramento \acs{SPI}. A cadeia de filtros digitais \acs{IIR} e o algoritmo de detecção de eventos foram implementados e executados sobre segmentos de 30~s armazenados na memória \textit{PSRAM} do microcontrolador, recurso que viabilizou o processamento de 19.200 amostras por segmento sem comprometer a memória interna.
+
+O subsistema de armazenamento local em \textit{LittleFS} foi validado: para cada segmento processado, o resumo de 16 bytes foi gravado no \textit{log} binário, e a forma de onda dos segmentos sinalizados como anormais foi persistida integralmente, com as políticas de rotação operando conforme projetado. Os comandos de inspeção pela interface serial (despejo do \textit{log}, listagem e leitura dos arquivos de sinal bruto) permitiram auditar o conteúdo gravado e compará-lo com os dados recebidos na nuvem. O módulo de transmissão \textit{LoRaWAN}, baseado na biblioteca \textit{RadioLib}, realizou a montagem do \textit{payload} de 10 bytes e o envio na porta de aplicação 2, com a aquisição prosseguindo de forma independente do estado da conexão de rádio.
+
+
+\section{Configuração da Rede LoRaWAN e Transmissão de Dados}
+\label{sec:resTransmissao}
+
+Inicialmente, realizou-se a configuração do \textit{gateway} da \textit{Radioenge} conectado ao \textit{Raspberry Pi 3} e a integração de um módulo Wio-SX1262 acoplado a um microcontrolador XIAO ESP32-S3. Essa integração facilitou os testes iniciais, permitindo direcionar os esforços para a comunicação com os servidores \textit{LoRaWAN}.
+
+As primeiras tentativas de comunicação foram realizadas com a \acs{TTN}. Apesar de sua infraestrutura acessível e bem documentada, surgiram problemas recorrentes, como a exibição intermitente do dispositivo como \textit{offline}, mesmo com o envio de \textit{uplinks} válidos, além de latência variável na resposta dos pacotes e dependência integral de conectividade com a internet. A plataforma também impõe restrições à taxa de envio de mensagens (\textit{duty cycle}), dificultando aplicações que demandam transmissões frequentes.
+
+Frente a essas dificuldades, a adoção de um servidor local com o \textit{ChirpStack} mostrou-se mais eficaz. A instalação local proporcionou maior controle sobre os componentes da rede, incluindo a visualização dos \textit{uplinks} em tempo real, a personalização dos parâmetros de recepção e a integração direta, via \acs{MQTT}, com a camada de aplicação. Embora tenha exigido uma curva de aprendizado mais acentuada, sobretudo na configuração dos perfis \acs{OTAA} e no roteamento interno dos dados, o servidor local demonstrou desempenho superior em termos de estabilidade e previsibilidade da comunicação.
+
+Persistiram, contudo, desafios relacionados à natureza do protocolo \textit{LoRaWAN} em Classe~A, utilizado neste trabalho. Nesse modo, a abertura das janelas de recepção depende da transmissão anterior, o que limita substancialmente a taxa de envio. Em um dos experimentos, conduzido ainda sob a hipótese de transmitir a forma de onda, buscou-se enviar 15.000 amostras de \acs{ECG} comprimidas em blocos; embora a meta inicial fosse o envio de pacotes a cada 200 milissegundos, observou-se, na prática, intervalos entre 2 e 3 segundos por pacote, resultando em um tempo total de transmissão de aproximadamente 392,2 segundos — valor incompatível com aplicações em tempo quase real. Esse resultado, alinhado às restrições reportadas na literatura \citep{lorawanWaveform, 3-lead}, evidenciou a inviabilidade de transmitir a forma de onda completa e motivou a adoção da estratégia de detecção na borda, discutida na Seção~\ref{sec:resDeteccao}.
+
+A banda AU915 (sub-banda 2) foi mantida ao longo de todos os testes, e o módulo Wio-SX1262 demonstrou compatibilidade e bom desempenho dentro das limitações do protocolo.
+
+
+\section{Determinação da Taxa de Amostragem Efetiva}
+\label{sec:resTaxa}
+
+Durante a caracterização do ADS1293, constatou-se que a taxa de amostragem efetiva divergia do valor nominal associado à configuração de registradores empregada pela biblioteca. A contagem de amostras adquiridas por unidade de tempo, no modo de diagnóstico do \textit{firmware}, indicou aproximadamente 1.920 amostras em 3 segundos, ou seja, cerca de 640 amostras por segundo (\acs{ksps} fracionário).
+
+Esse valor foi confirmado analiticamente a partir da cadeia de divisores do conversor. Com a frequência de \textit{clock} interna $f_{CLK} = 409{,}6$~kHz, a frequência de modulação resulta em $f_{MOD} = f_{CLK}/4 = 102{,}4$~kHz, e a taxa de saída (\textit{Output Data Rate}) é dada pela Equação~\ref{eq:odr}:
+
+\begin{equation}
+    \text{ODR} = \frac{f_{MOD}}{R_1 \cdot R_2 \cdot R_3} = \frac{102{,}4 \times 10^3}{4 \cdot 5 \cdot 8} = 640 \text{ SPS}
+    \label{eq:odr}
+\end{equation}
+
+\noindent em que $R_1$, $R_2$ e $R_3$ são os fatores de decimação configurados nos registradores do ADS1293. O valor calculado coincidiu com a medição experimental, estabelecendo a taxa de amostragem efetiva do sistema em 640 SPS. Esse esclarecimento foi essencial, pois os coeficientes dos filtros digitais (Seção~\ref{sec:condicionamento}) e o cálculo dos intervalos R-R dependem diretamente da taxa de amostragem correta; um valor equivocado distorceria as frequências de corte e as estimativas de frequência cardíaca.
+
+
+\section{Aquisição e Condicionamento do Sinal de ECG}
+\label{sec:resSinal}
+
+A aquisição do sinal foi avaliada por meio de uma ferramenta de visualização que recebe as três derivações pela interface serial do dispositivo. Nos ensaios preliminares, com o cabo de eletrodos posicionado segundo o triângulo de \textit{Einthoven}, o sinal capturado apresentou uma oscilação periódica de amplitude aproximadamente uniforme, em torno de 6,4 Hz, sem as deflexões características do complexo QRS, da onda P e da onda T. Em consequência, o algoritmo de detecção não identificou picos R consistentes, sinalizando a maior parte dos segmentos como erro de processamento.
+
+A investigação atribuiu o fenômeno à ausência de uma referência de modo comum efetiva: o amplificador de perna direita (\textit{Right-Leg Drive} -- RLD), necessário para estabilizar o potencial do corpo em relação ao circuito de entrada, não estava adequadamente conectado, deixando as entradas diferenciais sujeitas a interferência de modo comum. Como medida corretiva, em andamento, optou-se por reconfigurar a montagem dos três eletrodos de modo a dedicar uma das entradas à referência RLD, privilegiando a derivação II — utilizada pelo algoritmo de detecção. A revalidação da qualidade do sinal, após essa correção, constitui etapa imediata do trabalho.
+
+% FIGURA PENDENTE: inserir, após recaptura com RLD corrigido, o traçado da derivação II
+% (sinal bruto vs. filtrado) exportado pelo plotter/scripts de análise em C:\Work\mestrado\dados.
+% Ex.: \begin{figure}...\includegraphics{assets/sinal_lead2.pdf}...\end{figure}
+
+Cabe destacar que a cadeia de condicionamento digital — composta pelos filtros passa-baixas (40 Hz) e passa-altas (0,5 Hz) descritos na Seção~\ref{sec:condicionamento} — foi implementada e validada em termos de resposta sobre sinais de teste, restando sua avaliação sobre um sinal fisiológico de boa qualidade.
+
+
+\section{Validação do Fluxo de Dados de Ponta a Ponta}
+\label{sec:resPipeline}
+
+A integração entre a infraestrutura de rede e a camada de aplicação foi validada de forma independente da aquisição do biopotencial. Utilizando uma ferramenta de publicação \acs{MQTT} para simular \textit{uplinks} do \textit{ChirpStack}, verificou-se que o serviço de ingestão (Seção~\ref{sec:ingestor}) decodificou corretamente o \textit{payload}, identificou o dispositivo pelo seu \textit{DevEUI}, gravou o evento cardíaco na coleção correspondente do \textit{Firestore} e, nos casos críticos, registrou as notificações destinadas aos profissionais de saúde. As alterações no banco propagaram-se, em tempo real, para o aplicativo móvel por meio do mecanismo de \textit{listeners} do \textit{Firestore}, confirmando o funcionamento do caminho completo de dados:
+
+\begin{center}
+\textit{dispositivo} $\rightarrow$ \textit{LoRaWAN} $\rightarrow$ \textit{ChirpStack} $\rightarrow$ \acs{MQTT} $\rightarrow$ \textit{ingestor} $\rightarrow$ \textit{Firestore} $\rightarrow$ aplicativo.
+\end{center}
+
+A consistência dos dados foi conferida confrontando os registros armazenados localmente no dispositivo, obtidos por meio dos comandos de despejo pela interface serial, com os eventos persistidos no banco em nuvem, não se observando divergências nos campos transmitidos.
+
+\section{Desenvolvimento do Aplicativo Móvel}
+\label{sec:resApp}
+
+O aplicativo móvel foi desenvolvido com \textit{React Native} sobre a plataforma \textit{Expo} e encontra-se funcional nas suas principais funcionalidades. Implementaram-se os fluxos de autenticação — cadastro, \textit{login}, recuperação de senha e a tela de espera por vínculo institucional — integrados ao \textit{Firebase Authentication}. O controle de acesso por perfil (administrador geral, administrador de instituição e profissional de saúde) e por estado de vínculo foi efetivado por meio das regras de segurança do \textit{Firestore} (Seção~\ref{sec:seguranca}), dispensando um servidor intermediário.
+
+As telas operacionais contemplaram o painel de eventos cardíacos, atualizado em tempo real pelo mecanismo de \textit{listeners} do \textit{Firestore}; a gestão de pacientes (cadastro, edição, consulta e remoção); a gestão de dispositivos, com vínculo e desvínculo de pacientes; e as funções administrativas de gestão de instituições e de usuários, incluindo a ativação de profissionais pendentes. O recebimento de alertas por meio de notificações \textit{push}, a cada evento crítico, foi integrado ao serviço de notificações do \textit{Expo}. A leitura e a escrita diretas no \textit{Firestore}, sem \acs{API} intermediária, simplificaram a arquitetura e reduziram a latência de atualização da interface.
+
+% FIGURAS PENDENTES: telas do aplicativo (login, dashboard de eventos em tempo real,
+% lista de pacientes, gestão de dispositivos, notificação de alerta). Capturar do app Expo
+% em execução e salvar em assets/.
+
+
+\section{Detecção na Borda e Redução do Payload}
+\label{sec:resDeteccao}
+
+A estratégia de detecção na borda foi verificada quanto ao seu efeito sobre o volume de dados transmitidos. Enquanto a transmissão da forma de onda completa de um segmento de 30~s, à taxa efetiva de 640 SPS e 2 bytes por amostra, exigiria o envio de 38.400 bytes, o resumo produzido pelo algoritmo embarcado ocupou apenas 10 bytes por segmento — uma redução de mais de três ordens de grandeza. Esse \textit{payload} compacto é transmitido em um único \textit{uplink} a cada 30~s, com tempo de ocupação do canal (\textit{Time on Air}) reduzido e amplo respeito às restrições de \textit{duty cycle}, ao contrário da transmissão fragmentada da forma de onda, cujo tempo total inviabilizava o monitoramento contínuo (Seção~\ref{sec:resTransmissao}).
+
+Essa abordagem é coerente com a análise de viabilidade da literatura, segundo a qual o \textit{LoRaWAN} é adequado à transmissão de alertas de detecção e de parâmetros vitais, porém não à da forma de onda contínua \citep{lorawanWaveform}. A preservação local da forma de onda dos segmentos anormais (Seção~\ref{sec:armazenamento}) manteve a possibilidade de análise detalhada \textit{a posteriori}, sem onerar o canal.
+
+A validação clínica do desempenho do algoritmo de detecção — sensibilidade e especificidade na identificação das arritmias em sinais reais — depende da obtenção de um sinal de \acs{ECG} de boa qualidade e dos ensaios com pacientes, e constitui etapa subsequente do trabalho.
+
+
+\section{Considerações sobre os Resultados Preliminares}
+\label{sec:resConsideracoes}
+
+Os resultados preliminares, embora ainda parciais, validaram as decisões estruturais do projeto. Consolidou-se a infraestrutura \textit{LoRaWAN} com servidor de rede local; determinou-se a taxa de amostragem efetiva do conversor; verificou-se a integração de ponta a ponta entre o dispositivo, a nuvem e o aplicativo; e confirmou-se que a detecção na borda viabiliza a operação do sistema sobre \textit{LoRaWAN}. O principal obstáculo remanescente concentra-se na qualidade da aquisição do biopotencial, cuja correção está em curso. A experiência acumulada subsidiará as etapas finais, que incluem a revalidação do sinal após o ajuste da referência RLD, os testes de cobertura da rede e os ensaios clínicos controlados na Clínica Escola Integrada da \acs{UFMS}.

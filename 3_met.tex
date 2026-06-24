@@ -1,0 +1,436 @@
+\chapter{Metodologia}
+\label{chap:metodologia}
+
+O desenvolvimento deste trabalho foi organizado em quatro frentes complementares, integradas em um único fluxo de dados que vai da aquisição do biopotencial até a visualização clínica: (i) um dispositivo embarcado responsável pela captura, processamento e transmissão do sinal de \acs{ECG}; (ii) a infraestrutura de rede \textit{LoRaWAN}, composta por um \textit{gateway} e por um servidor de rede local; (iii) um serviço de ingestão que recebe os dados da rede e os persiste em nuvem; e (iv) um aplicativo móvel para acompanhamento dos pacientes em tempo real pelos profissionais de saúde.
+
+Diferentemente das abordagens que transmitem a forma de onda completa do \acs{ECG}, este trabalho adotou a estratégia de \textit{processamento na borda} (\textit{edge computing}): a detecção de eventos cardíacos foi realizada no próprio dispositivo embarcado, e apenas um resumo compacto de cada segmento analisado foi transmitido pela rede \textit{LoRaWAN}. Essa decisão, detalhada na Seção~\ref{sec:transmissaoLora}, contornou as restrições de \textit{duty cycle} e de taxa de dados inerentes ao protocolo, viabilizando o monitoramento contínuo em uma rede de longo alcance e baixo consumo.
+
+A Figura~\ref{fig:topologia} apresenta a arquitetura completa do sistema. O sinal foi captado por eletrodos conectados ao paciente e digitalizado pelo \acs{AFE} ADS1293; o microcontrolador XIAO ESP32-S3 aplicou filtragem digital, executou o algoritmo de detecção de arritmias e transmitiu o resumo de cada segmento via módulo \textit{LoRa} Wio-SX1262. O \textit{gateway} \textit{LoRaWAN} encaminhou os pacotes ao servidor de rede \textit{ChirpStack}, que os publicou em um \textit{broker} \acs{MQTT}. Um serviço de ingestão consumiu essas mensagens e gravou os eventos no banco de dados em nuvem (\textit{Firestore}), de onde o aplicativo móvel os leu em tempo real.
+
+\begin{figure}[ht]
+    \centering
+    \resizebox{\linewidth}{!}{%
+    \begin{tikzpicture}[
+        >={Stealth[round]},
+        box/.style={draw, rounded corners, align=center, minimum height=1.05cm, minimum width=2.1cm, font=\footnotesize},
+        lbl/.style={font=\scriptsize, align=center},
+        node distance=0.9cm and 0.95cm
+    ]
+        \node[box] (ecg)  {Eletrodos\\(paciente)};
+        \node[box, right=of ecg]  (mcu)  {XIAO ESP32-S3\\+ ADS1293};
+        \node[box, right=of mcu]  (lora) {Wio-SX1262\\(LoRaWAN)};
+        \node[box, right=of lora] (gw)   {\textit{Gateway} +\\ \textit{ChirpStack}};
+        \node[box, right=of gw]   (ing)  {Ingestor\\(\acs{MQTT})};
+        \node[box, right=of ing]  (fs)   {\textit{Firestore}\\(nuvem)};
+        \node[box, below=1.0cm of fs] (app) {Aplicativo\\móvel};
+
+        \draw[->] (ecg)  -- (mcu);
+        \draw[->] (mcu)  -- (lora) node[midway, above, lbl]{\acs{SPI}};
+        \draw[->] (lora) -- (gw)   node[midway, above, lbl]{\textit{LoRa}};
+        \draw[->] (gw)   -- (ing)  node[midway, above, lbl]{\acs{MQTT}};
+        \draw[->] (ing)  -- (fs);
+        \draw[<->] (fs)  -- (app)  node[midway, right, lbl]{\acs{SDK}};
+
+        \node[lbl, below=0.05cm of mcu, text width=2.3cm] {detecção\\na borda};
+    \end{tikzpicture}%
+    }
+    \caption{Topologia geral do sistema de monitoramento, da aquisição do sinal de \acs{ECG} à visualização no aplicativo móvel. A detecção de eventos ocorre no dispositivo embarcado, e apenas o resumo de cada segmento trafega pela rede.}
+    \label{fig:topologia}
+\end{figure}
+
+
+\section{Dispositivo de Aquisição e Transmissão do Sinal de ECG}
+\label{sec:dispositivo}
+
+Para a aquisição e transmissão dos sinais de \acs{ECG} foram utilizados módulos comerciais de baixo custo, selecionados com o objetivo de obter um sistema compacto, confiável e energeticamente eficiente, adequado a aplicações de telemedicina e monitoramento remoto. A escolha dos componentes priorizou a alta resolução na aquisição do biopotencial, a capacidade de comunicação de longo alcance e a disponibilidade de recursos de processamento embarcado.
+
+\subsection{Seleção dos Componentes de Hardware}
+\label{sec:selecaoHardware}
+
+A definição do microcontrolador considerou capacidade de processamento, conectividade, consumo energético, dimensões e custo. Optou-se pelo módulo XIAO ESP32-S3, que reúne, em um encapsulamento de dimensões reduzidas (21~$\times$~17,5~mm), um processador de dois núcleos, suporte nativo a \textit{Wi-Fi} e \textit{Bluetooth}, controlador de carga de bateria de íons de lítio integrado e memória \textit{PSRAM} de 8~MB. Esse último recurso foi determinante para o projeto, pois permitiu armazenar em memória os segmentos de 30~s de sinal necessários ao algoritmo de detecção. A Tabela~\ref{tab:mcu} compara o módulo escolhido com o Arduino~Uno, plataforma recorrente em trabalhos correlatos.
+
+\begin{table}[h]
+    \centering
+    \caption{Comparativo entre os microcontroladores avaliados.}
+    \begin{tabular}{l|>{\centering\arraybackslash}m{3.2cm}|>{\centering\arraybackslash}m{3.2cm}}
+         & \textbf{XIAO ESP32-S3} & \textbf{Arduino Uno} \\ \hline
+        \textbf{Núcleo} & \textit{Xtensa} LX7 \mbox{dual-core} 32 bits & ATmega328P 8 bits \\ \hline
+        \textbf{Frequência} & até 240 MHz & 16 MHz \\ \hline
+        \textbf{Memória} & 512 KB SRAM + 8 MB PSRAM & 2 KB SRAM \\ \hline
+        \textbf{Conectividade} & \textit{Wi-Fi} + \textit{Bluetooth}/BLE & nenhuma nativa \\ \hline
+        \textbf{Bateria} & controlador de carga integrado & externo \\ \hline
+        \textbf{Dimensões} & 21 $\times$ 17,5 mm & 68,6 $\times$ 53,4 mm \\ \hline
+        \textbf{Preço aproximado} & US\$ 9,90 & US\$ 11,90 \\ \hline
+    \end{tabular}
+    \label{tab:mcu}
+\end{table}
+
+Para a aquisição do biopotencial, a revisão bibliográfica evidenciou que a maioria dos trabalhos emprega o módulo AD8232. Esse componente, contudo, apresenta limitações relevantes: não dispõe de conversor analógico-digital (A/D) integrado, exigindo o uso do \acs{ADC} interno do microcontrolador, cuja resolução efetiva (10--12 bits) e taxa de amostragem são limitadas; além disso, oferece uma única derivação \citep{AnalogDevices_AD8232}. Optou-se, portanto, pelo módulo CJMCU-1293, baseado no \acs{AFE} ADS1293, que integra três canais simultâneos, conversão de 24~bits e taxa de amostragem programável \citep{TexasInstruments_ADS1293}. A Tabela~\ref{tab:ads_vs_ad8232} sintetiza as vantagens do módulo adotado.
+
+\begin{table}[h]
+    \centering
+    \caption{Comparativo entre os \acs{AFE} ADS1293 e AD8232 para aplicações em \acs{ECG}.}
+    \begin{tabular}{l|>{\centering\arraybackslash}m{4.5cm}|>{\centering\arraybackslash}m{4.5cm}}
+         & \textbf{ADS1293 (CJMCU-1293)} & \textbf{AD8232} \\ \hline
+        \textbf{Conversor A/D} & 24 bits & Não possui (saída analógica) \\ \hline
+        \textbf{Canais} & Até 3 canais simultâneos & 1 canal \\ \hline
+        \textbf{Taxa de amostragem} & Programável (até 25,6 kSPS) & Definida pelo microcontrolador externo \\ \hline
+        \textbf{Resolução efetiva} & 24 bits nativos & 10--12 bits (ADC do MCU) \\ \hline
+        \textbf{Consumo de energia} & 0,3 mW por canal & Muito baixo (depende do circuito externo) \\ \hline
+        \textbf{Recursos para ECG} & RLD, detecção de eletrodo solto, filtros programáveis & RLD, detecção de eletrodo solto \\ \hline
+        \textbf{Aplicação típica} & ECG portátil de alta precisão; pesquisa biomédica & Ensino, prototipagem, \textit{wearables} simples \\ \hline
+    \end{tabular}
+    \label{tab:ads_vs_ad8232}
+\end{table}
+
+A transmissão dos dados coube ao módulo \textit{LoRa} Wio-SX1262, escolhido pela comunicação de longo alcance e pelo baixo consumo característicos da tecnologia. A alimentação do conjunto foi provida por uma bateria de íons de lítio de 3,7~V. Ressalta-se que o ADS1293 foi alimentado com 3,3~V, respeitando o limite máximo de tensão analógica (\textit{AVDD}) de 3,6~V do componente.
+
+\subsection{Arquitetura e Funcionamento do Dispositivo}
+\label{sec:arqDispositivo}
+
+O ADS1293 registrou os sinais bioelétricos do coração e os entregou já digitalizados ao microcontrolador por meio de um barramento \acs{SPI} (\textit{Serial Peripheral Interface}). A Tabela~\ref{tab:pinagem} apresenta a pinagem utilizada na interligação entre o ADS1293 e o XIAO ESP32-S3. O sinal de interrupção \acs{DRDY} (\textit{Data Ready}) foi empregado para sinalizar, a cada nova amostra disponível, a leitura pelo microcontrolador, garantindo a aquisição em taxa constante.
+
+\begin{table}[h]
+    \centering
+    \caption{Pinagem da interface \acs{SPI} entre o ADS1293 e o XIAO ESP32-S3.}
+    \begin{tabular}{l|c|l}
+        \textbf{Sinal} & \textbf{Pino XIAO} & \textbf{Função} \\ \hline
+        DRDY & D1 & Interrupção: amostra pronta \\ \hline
+        CS   & D3 & \textit{Chip Select} \\ \hline
+        SCK  & D8 & \textit{Clock} \acs{SPI} \\ \hline
+        MISO & D9 & \textit{Master In, Slave Out} \\ \hline
+        MOSI & D10 & \textit{Master Out, Slave In} \\ \hline
+    \end{tabular}
+    \label{tab:pinagem}
+\end{table}
+
+A aquisição foi realizada segundo o triângulo de \textit{Einthoven}, obtendo-se três derivações a partir dos eletrodos de membros. As derivações I e II foram medidas diretamente pelos canais 1 e 2 do ADS1293, e a derivação III foi calculada por meio da lei de \textit{Einthoven}, conforme as Equações~\ref{eq:leadI} a~\ref{eq:leadIII}:
+
+\begin{align}
+    \text{Derivação I}   &= \text{LA} - \text{RA} \label{eq:leadI} \\
+    \text{Derivação II}  &= \text{LL} - \text{RA} \label{eq:leadII} \\
+    \text{Derivação III} &= \text{Derivação II} - \text{Derivação I} \label{eq:leadIII}
+\end{align}
+
+\noindent em que RA, LA e LL representam, respectivamente, os eletrodos do braço direito, do braço esquerdo e da perna esquerda. A derivação II foi adotada como referência para o algoritmo de detecção, por apresentar, tipicamente, a maior amplitude do complexo QRS. A Figura~\ref{fig:diagrama_ecg} ilustra o diagrama de blocos do dispositivo.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1\linewidth]{assets/blocosDispositivoHardware.drawio.pdf}
+    \caption{Diagrama de blocos do dispositivo de aquisição e transmissão do sinal de \acs{ECG}.}
+    \label{fig:diagrama_ecg}
+\end{figure}
+
+\subsection{Módulo Microcontrolador XIAO ESP32-S3}
+\label{sec:xiao}
+
+O módulo XIAO ESP32-S3 baseia-se em um microcontrolador de arquitetura \textit{Xtensa}\textsuperscript{\textregistered} \mbox{dual-core} de 32 bits (LX7), voltado a aplicações de \acs{IoT}, computação de borda e dispositivos embarcados. Suas principais características são:
+
+\begin{itemize}
+    \item \textbf{Processador}: \mbox{dual-core} \textit{Xtensa} LX7, com frequência de até 240 MHz.
+    \item \textbf{Memória}: 512 KB de \textit{SRAM}, 384 KB de \textit{ROM} e 8 MB de \textit{PSRAM}, esta última empregada para armazenar os segmentos de \acs{ECG} processados.
+    \item \textbf{Conectividade}: \textit{Wi-Fi} 2,4 GHz, \textit{Bluetooth} 5.0 e \textit{BLE Mesh}.
+    \item \textbf{Periféricos}: \acs{ADC} de 12 bits, além de interfaces \acs{SPI}, \textit{I\textsuperscript{2}C} e \textit{UART}, utilizadas para a conexão com o \acs{AFE} de \acs{ECG} e o módulo \textit{LoRa}.
+    \item \textbf{Gerenciamento de energia}: controlador de carga de bateria integrado e modo \textit{deep sleep} com consumo inferior a 8~µA.
+\end{itemize}
+
+\subsection{Módulo de Comunicação Wio-SX1262}
+\label{sec:sx1262}
+
+O Wio-SX1262 é um módulo \textit{LoRa} baseado no transceptor \textit{Semtech} SX1262, projetado para transmissões de longo alcance e baixo consumo. Suas principais características são:
+
+\begin{itemize}
+    \item \textbf{Consumo em repouso}: 1,62 µA em modo \textit{sleep}.
+    \item \textbf{Frequência de operação}: 862--930 MHz, abrangendo as principais regulamentações regionais do \textit{LoRaWAN}.
+    \item \textbf{Potência de transmissão}: até 22 dBm (158 mW).
+    \item \textbf{Sensibilidade de recepção}: até -136,73 dBm (SF12, largura de banda de 125 kHz).
+    \item \textbf{Interfaces}: comunicação \acs{SPI} com o microcontrolador e conector \acs{IPEX} para antena externa.
+\end{itemize}
+
+No XIAO ESP32-S3, o Wio-SX1262 ocupa um barramento \acs{SPI} dedicado, com pinos internos distintos dos utilizados pelo ADS1293, eliminando conflitos de comunicação entre os dois periféricos.
+
+\subsection{Módulo de Aquisição CJMCU-1293 (ADS1293)}
+\label{sec:cjmcu}
+
+O CJMCU-1293 é um módulo de desenvolvimento que integra o \acs{AFE} (\textit{Analog Front End}) ADS1293, circuito integrado de baixo consumo projetado para aplicações médicas portáteis. Suas principais características são:
+
+\begin{itemize}
+    \item \textbf{Arquitetura e precisão}: 3 canais de alta resolução para aquisição simultânea de \acs{ECG}; conversão A/D de 24 bits; taxa de amostragem programável de até 25,6 kSPS.
+    \item \textbf{Consumo de energia}: 0,3 mW por canal, com modos de baixo consumo e \textit{standby}.
+    \item \textbf{Faixa de operação}: alimentação analógica de 2,7 V a 5,5 V e entrada diferencial de ±400 mV, compatível com eletrodos de \acs{ECG} comuns.
+    \item \textbf{Funcionalidades para ECG}: detecção de eletrodo desconectado (\textit{Lead-Off Detection}); entradas com imunidade a interferência eletromagnética (\textit{EMI-Hardened Inputs}); e amplificador de perna direita (\textit{Right-Leg Drive} -- RLD), que reduz o ruído de modo comum, em especial a interferência de 60 Hz da rede elétrica.
+    \item \textbf{Interface}: comunicação via \acs{SPI} com o microcontrolador.
+\end{itemize}
+
+A configuração do ADS1293 foi realizada para operação em três derivações (\textit{3-Lead}), com a detecção de modo comum e o amplificador RLD habilitados, condições necessárias à obtenção de um sinal limpo durante a movimentação do paciente.
+
+
+\section{Firmware Embarcado}
+\label{sec:firmware}
+
+O \textit{firmware} do dispositivo foi desenvolvido em C++ sobre a plataforma \textit{Arduino}, e estruturado em torno de um laço orientado a interrupção: a cada borda do sinal \acs{DRDY}, uma amostra das três derivações foi lida do ADS1293, condicionada por filtragem digital e acumulada em um \textit{buffer}. Ao completar um segmento de 30~s, o algoritmo de detecção de arritmias foi executado, o resultado foi registrado em memória não volátil e, então, transmitido pela rede \textit{LoRaWAN}.
+
+\subsection{Aquisição e Condicionamento do Sinal}
+\label{sec:condicionamento}
+
+As amostras brutas, fornecidas pelo conversor de 24 bits, foram convertidas para a escala de tensão segundo a relação $v = (raw / 2^{23}) \cdot V_{ref}$. Em seguida, cada derivação foi submetida a uma cascata de dois filtros digitais de resposta ao impulso infinita (\acs{IIR}): um filtro passa-baixas, com frequência de corte de 40 Hz, para atenuar o ruído muscular e a interferência da rede elétrica; e um filtro passa-altas, com frequência de corte de 0,5 Hz, para remover o desvio de linha de base (\textit{baseline wander}) e a componente contínua de \textit{offset} dos eletrodos. Os coeficientes dos filtros foram calculados para a taxa de amostragem efetiva do sistema, determinada experimentalmente conforme descrito no Capítulo~\ref{chap:resultados}.
+
+\subsection{Detecção de Eventos na Borda}
+\label{sec:deteccaoBorda}
+
+O núcleo do processamento embarcado consistiu em um algoritmo de detecção de complexos QRS e de classificação de arritmias, aplicado à derivação II de cada segmento de 30~s. O algoritmo, baseado na análise da derivada do sinal, seguiu as etapas:
+
+\begin{enumerate}
+    \item \textbf{Diferenciação}: cálculo da diferença discreta entre amostras consecutivas, realçando as transições rápidas associadas ao complexo QRS.
+    \item \textbf{Filtragem}: convolução do sinal diferenciado com um filtro passa-baixas do tipo janela-sinc (janela de \textit{Hamming}), suavizando as componentes de alta frequência remanescentes.
+    \item \textbf{Limiarização adaptativa}: cálculo de limiares positivo e negativo proporcionais à média das amplitudes de cada polaridade, separando os extremos significativos do ruído de fundo.
+    \item \textbf{Pareamento e detecção de picos}: identificação dos pares de extremos (descida e subida) correspondentes a cada complexo QRS e localização dos picos R.
+    \item \textbf{Cálculo dos intervalos R-R}: a partir das posições dos picos R, foram obtidos os intervalos R-R e suas estatísticas (média, desvio padrão e diferenças sucessivas), base para a classificação.
+\end{enumerate}
+
+O Algoritmo~\ref{alg:rpeak} formaliza essa sequência de detecção dos picos R.
+
+\begin{algorithm}[ht]
+\caption{Detecção de picos R no segmento de ECG}
+\label{alg:rpeak}
+\KwIn{Segmento da derivação II $x[0..N-1]$; frequência de amostragem $f_s$}
+\KwOut{Conjunto de picos R, $\mathcal{R}$}
+$w \leftarrow \lfloor 0{,}14 \cdot f_s \rfloor$\tcp*{janela $\approx$ largura máx.\ do QRS}
+\For{$n \leftarrow 1$ \KwTo $N-1$}{
+  $d[n] \leftarrow x[n]-x[n-1]$\tcp*{diferenciação}
+}
+$\hat{d} \leftarrow \text{FiltroPassaBaixas}(d)$\tcp*{janela-sinc de Hamming}
+$\mathrm{MV_p} \leftarrow$ média de $\{\hat{d}[i] : \hat{d}[i]>0\}$\;
+$\mathrm{MV_n} \leftarrow$ média de $\{\hat{d}[i] : \hat{d}[i]<0\}$\;
+$T_1 \leftarrow 4\,\mathrm{MV_p}$\quad;\quad $T_2 \leftarrow 4\,\mathrm{MV_n}$\tcp*{limiares adaptativos}
+\ForEach{amostra $\hat{d}[i]$}{
+  \lIf{$0<\hat{d}[i]<T_1$ \textbf{ou} $T_2<\hat{d}[i]<0$}{$\hat{d}[i] \leftarrow 0$}
+}
+$E \leftarrow \emptyset$\;
+\ForEach{janela de tamanho $w$}{
+  insere em $E$ o máximo de $\hat{d}^{+}$ e o mínimo de $\hat{d}^{-}$ da janela\;
+}
+ordena $E$ por índice\;
+$P \leftarrow$ pares consecutivos de $E$, de polaridade oposta e com $\Delta t < w$\;
+$\mathcal{R} \leftarrow \emptyset$\;
+\ForEach{par $(e_1,e_2) \in P$}{
+  $r \leftarrow$ extremo de $x$ no intervalo $[e_1,e_2]$\tcp*{pico R no sinal original}
+  $\mathcal{R} \leftarrow \mathcal{R} \cup \{r\}$\;
+}
+\Return $\mathcal{R}$\;
+\end{algorithm}
+
+Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm); as demais categorias basearam-se na variabilidade e nas diferenças entre intervalos R-R sucessivos. Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
+
+\begin{algorithm}[ht]
+\caption{Classificação de arritmias a partir dos intervalos R-R}
+\label{alg:classif}
+\KwIn{Picos R $\mathcal{R}$; limiares $RR_{taq}=600$ ms e $RR_{bra}=1000$ ms}
+\KwOut{Categoria(s) de anormalidade do segmento}
+\lIf{$|\mathcal{R}|<3$}{\Return erro de processamento}
+\For{$i \leftarrow 0$ \KwTo $|\mathcal{R}|-2$}{
+  $RR[i] \leftarrow (\mathcal{R}_{i+1}-\mathcal{R}_i)\cdot 1000 / f_s$\tcp*{intervalo R-R em ms}
+}
+$\overline{RR} \leftarrow \text{média}(RR)$\;
+$a \leftarrow 0$;\ $b \leftarrow 0$;\ $p \leftarrow 0$\tcp*{contadores: arritmia, bloqueio, parada}
+\For{$i \leftarrow 0$ \KwTo $|RR|-2$}{
+  \lIf{$|RR[i{+}1]-RR[i]| > 120$}{$a \leftarrow a+1$}
+  \lIf{$4000 \le RR[i] \le 6000$}{$b \leftarrow b+1$}
+  \lIf{$RR[i] > 6000$ \textbf{e} $RR[i] \neq 4\,RR[0]$}{$p \leftarrow p+1$}
+}
+\lIf{$\overline{RR} < RR_{taq}$}{\textbf{Taquicardia}}
+\lIf{$\overline{RR} > RR_{bra}$ \textbf{e} $a=b=p=0$}{\textbf{Bradicardia}}
+\lIf{$a>0$ \textbf{e} $b=p=0$}{\textbf{Arritmia sinusal}}
+\lIf{$b>1$ \textbf{e} $p=0$}{\textbf{Bloqueio sinoatrial}}
+\lIf{$p>0$}{\textbf{Parada sinoatrial}}
+\end{algorithm}
+
+\subsection{Armazenamento Local}
+\label{sec:armazenamento}
+
+Para conferir robustez ao sistema diante de eventuais falhas de comunicação e permitir a validação posterior dos dados, o \textit{firmware} manteve um registro local em memória \textit{flash}, por meio do sistema de arquivos \textit{LittleFS}. Para cada segmento de 30~s, independentemente de sua classificação, foi gravado um resumo compacto de 16 bytes contendo o identificador sequencial do segmento, a frequência cardíaca estimada, o intervalo R-R médio e seu desvio padrão, o número de picos detectados e as anormalidades identificadas. Adicionalmente, para os segmentos classificados como anormais, o sinal bruto da derivação II foi armazenado integralmente, possibilitando a inspeção \textit{a posteriori} da forma de onda associada ao evento. Foram implementadas políticas de rotação que descartam os registros mais antigos ao se atingir o limite de armazenamento, garantindo a operação contínua e ininterrupta do dispositivo.
+
+\subsection{Transmissão via LoRaWAN}
+\label{sec:transmissaoFirmware}
+
+A transmissão empregou a biblioteca \textit{RadioLib} e o protocolo \textit{LoRaWAN} na região AU915 (sub-banda 2), com ativação por \acs{OTAA} (\textit{Over-the-Air Activation}) e operação em Classe~A. Ao final de cada segmento, foi enviado, na porta de aplicação 2, um \textit{payload} de apenas 10 bytes contendo o resumo do segmento, codificado em formato \textit{big-endian}, conforme a Tabela~\ref{tab:payload}. O reduzido tamanho do \textit{payload} foi resultado direto da estratégia de detecção na borda e constituiu o elemento central que viabilizou a transmissão sobre \textit{LoRaWAN}.
+
+\begin{table}[h]
+    \centering
+    \caption{Estrutura do \textit{payload} de 10 bytes transmitido via \textit{LoRaWAN}.}
+    \begin{tabular}{c|l|c}
+        \textbf{Byte(s)} & \textbf{Campo} & \textbf{Tipo} \\ \hline
+        0 & \textit{Flags} de detecção (\textit{bitmask}) & uint8 \\ \hline
+        1--2 & Frequência cardíaca (bpm) & uint16 \\ \hline
+        3--4 & Intervalo R-R médio (ms) & uint16 \\ \hline
+        5--6 & Desvio padrão do R-R (ms) & uint16 \\ \hline
+        7 & Número de picos R & uint8 \\ \hline
+        8--9 & Identificador do segmento & uint16 \\ \hline
+    \end{tabular}
+    \label{tab:payload}
+\end{table}
+
+O campo de \textit{flags} codificou, em uma máscara de bits, as cinco categorias de anormalidade, permitindo o registro de detecções simultâneas em um mesmo segmento. O identificador sequencial do segmento possibilitou ao servidor detectar eventuais perdas de pacotes. A aquisição do \acs{ECG} foi mantida independentemente do sucesso da conexão \textit{LoRaWAN}: na ausência de rede, os dados permaneceram armazenados localmente até a recuperação da comunicação.
+
+
+\section{Infraestrutura de Rede LoRaWAN}
+\label{sec:infraLora}
+
+A infraestrutura de rede teve por função receber os pacotes transmitidos pelo dispositivo e disponibilizá-los para a aplicação. Ela foi composta por um \textit{gateway} \textit{LoRaWAN} e por um servidor de rede executado localmente, conferindo ao sistema autonomia em relação a redes públicas.
+
+\subsection{Minicomputador Raspberry Pi 3}
+\label{sec:rpi3}
+
+O \textit{Raspberry Pi 3} é um computador de placa única (\textit{Single Board Computer} -- \acs{SBC}) baseado em processador \textit{Quad-core ARM Cortex-A53} de 64 bits, com 1 GB de memória \textit{LPDDR2}, conectividade \textit{Wi-Fi}, \textit{Bluetooth} e \textit{Ethernet}, e 40 pinos \acs{GPIO}. No projeto, ele serviu de base computacional para o \textit{gateway}, hospedando tanto o módulo concentrador \textit{LoRa} quanto o servidor de rede \textit{ChirpStack}, e provendo a conexão \textit{Ethernet} de saída para a internet.
+
+\subsection{Módulo Radioenge LoRaWAN Gateway}
+\label{sec:radioenge}
+
+O \textit{LoRaWAN Gateway} da \textit{Radioenge} é um módulo concentrador de longo alcance, fornecido no formato de \textit{shield} para acoplamento direto ao \textit{Raspberry Pi 3}. Suas principais características são:
+
+\begin{itemize}
+    \item \textbf{Frequência de operação}: 902--928 MHz, em modo \textit{Half-Duplex} (TDD).
+    \item \textbf{Modulação e protocolo}: \textit{LoRa/CSS} (\textit{Chirp Spread Spectrum}), compatível com o protocolo \textit{LoRaWAN}.
+    \item \textbf{Capacidade de recepção}: até 8 canais simultâneos na banda \textit{LoRaWAN}.
+    \item \textbf{Potência de transmissão}: até +27 dBm (0,5 W).
+    \item \textbf{Sensibilidade de recepção}: até -137 dBm.
+    \item \textbf{Alimentação e consumo}: 5 V \acs{DC}; 300 mA em recepção e 700 mA em transmissão.
+\end{itemize}
+
+A Figura~\ref{fig:diagrama_getway} apresenta o diagrama de blocos do \textit{gateway}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1\linewidth]{assets/diagramaDeBlocoGateway.pdf}
+    \caption{Diagrama de blocos do \textit{gateway LoRaWAN}.}
+    \label{fig:diagrama_getway}
+\end{figure}
+
+\subsection{Servidor de Rede ChirpStack}
+\label{sec:chirpstack}
+
+Sobre o \textit{Raspberry Pi 3} foi instalado o \textit{ChirpStack}, servidor de rede \textit{LoRaWAN} de código aberto, responsável por autenticar os dispositivos, desduplicar os pacotes recebidos pelos \textit{gateways} e decodificar o \textit{payload}. Para tanto, configurou-se um decodificador (\textit{codec}) em \textit{JavaScript} que converte os 10 bytes recebidos no objeto estruturado descrito na Tabela~\ref{tab:payload}. Após a decodificação, o \textit{ChirpStack} publicou cada evento de \textit{uplink} em um \textit{broker} \acs{MQTT} (\textit{Message Queuing Telemetry Transport}), tornando os dados disponíveis para consumo pela camada de aplicação. A adoção de um servidor de rede local, em vez de uma rede pública, garantiu controle total sobre o roteamento dos dados e maior previsibilidade na comunicação, requisitos importantes em uma aplicação clínica.
+
+
+\section{Ingestão e Persistência dos Dados}
+\label{sec:ingestao}
+
+A integração entre a infraestrutura \textit{LoRaWAN} e a aplicação foi realizada por um serviço de ingestão desenvolvido em \textit{Python}. Optou-se por uma arquitetura sem servidor de aplicação dedicado (\textit{serverless}): o único processo de retaguarda em execução contínua foi o ingestor, enquanto a persistência e a leitura dos dados ficaram a cargo de uma plataforma gerenciada em nuvem.
+
+\subsection{Ingestor MQTT}
+\label{sec:ingestor}
+
+O ingestor inscreveu-se no \textit{broker} \acs{MQTT} do \textit{ChirpStack} e, a cada mensagem de \textit{uplink}, executou: a identificação do dispositivo de origem pelo seu \textit{DevEUI}; a verificação do paciente a ele vinculado; a determinação do tipo de evento de maior prioridade clínica a partir da máscara de \textit{flags}; e a gravação do evento cardíaco no banco de dados. Quando o evento foi classificado como crítico, o ingestor registrou também notificações destinadas aos profissionais de saúde ativos da respectiva instituição. Para conter o custo de operação da plataforma em nuvem, o serviço foi parametrizado de modo a permitir, opcionalmente, o descarte dos segmentos normais e a restrição das notificações apenas aos eventos críticos.
+
+\subsection{Banco de Dados e Modelo de Dados}
+\label{sec:bancoDados}
+
+A persistência foi realizada no \textit{Cloud Firestore}, banco de dados de documentos (\acs{NoSQL}) da plataforma \textit{Firebase}, escolhido por oferecer sincronização em tempo real com os clientes, escalabilidade gerenciada e integração nativa com o serviço de autenticação. Por se tratar de um banco orientado a documentos, o modelo não é relacional: os dados foram organizados em coleções de documentos que se referenciam por meio de identificadores, adotando-se um modelo multi-instituição (\textit{multi-tenant}) em que cada documento referencia a entidade (instituição) à qual pertence. A Tabela~\ref{tab:colecoes} descreve as coleções e seus principais campos, e a Figura~\ref{fig:modeloFirestore} ilustra as referências entre elas.
+
+\begin{table}[h]
+    \centering
+    \caption{Modelo de dados do \textit{Firestore}: coleções, principais campos e referências.}
+    \small
+    \begin{tabular}{l|>{\arraybackslash}m{6.7cm}|>{\arraybackslash}m{3.1cm}}
+        \textbf{Coleção} & \textbf{Principais campos} & \textbf{Referências} \\ \hline
+        \textit{entidades} & id, nome, ativo, criadoEm & --- \\ \hline
+        \textit{usuarios} & id, nome, email, perfil, entidadeId, status, criadoEm & entidadeId $\rightarrow$ entidades \\ \hline
+        \textit{pacientes} & id, nome, cpf, dataNascimento, ativo, entidadeId, criadoEm & entidadeId $\rightarrow$ entidades \\ \hline
+        \textit{dispositivos} & id, devEui, entidadeId, pacienteId, cadastradoPor, criadoEm & entidadeId $\rightarrow$ entidades; pacienteId $\rightarrow$ pacientes \\ \hline
+        \textit{eventosCardiacos} & id, dispositivoId, pacienteId, entidadeId, bpm, flags, tipoEvento, rrMed, rrDp, numPicos, segmentId, sinalCritico, origem, criadoEm & pacienteId $\rightarrow$ pacientes; dispositivoId $\rightarrow$ dispositivos \\ \hline
+        \textit{notificacoes} & id, usuarioId, entidadeId, titulo, mensagem, lida, eventoId, criadoEm & usuarioId $\rightarrow$ usuarios; eventoId $\rightarrow$ eventosCardiacos \\ \hline
+    \end{tabular}
+    \label{tab:colecoes}
+\end{table}
+
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}[
+        >={Stealth[round]},
+        coll/.style={draw, rounded corners, fill=gray!12, align=center, minimum height=0.9cm, minimum width=2.9cm, font=\small},
+        card/.style={font=\scriptsize}
+    ]
+        \node[coll] (ent)   at (0,0)      {entidades};
+        \node[coll] (usr)   at (-4.3,-2)  {usuarios};
+        \node[coll] (pac)   at (0,-2)     {pacientes};
+        \node[coll] (disp)  at (4.3,-2)   {dispositivos};
+        \node[coll] (evt)   at (2.0,-4)   {eventosCardiacos};
+        \node[coll] (notif) at (-4.3,-4)  {notificacoes};
+
+        \draw[->] (ent)  -- (usr)   node[card, midway, sloped, above]{1..N};
+        \draw[->] (ent)  -- (pac)   node[card, midway, right]{1..N};
+        \draw[->] (ent)  -- (disp)  node[card, midway, sloped, above]{1..N};
+        \draw[->] (disp) -- (pac)   node[card, midway, above]{0..1};
+        \draw[->] (pac)  -- (evt)   node[card, midway, sloped, below]{1..N};
+        \draw[->] (evt)  -- (notif) node[card, midway, above]{1..N};
+        \draw[->] (usr)  -- (notif) node[card, midway, left]{1..N};
+    \end{tikzpicture}
+    \caption{Modelo de dados do \textit{Firestore}: as setas indicam as referências entre coleções e a respectiva cardinalidade.}
+    \label{fig:modeloFirestore}
+\end{figure}
+
+\subsection{Autenticação e Controle de Acesso}
+\label{sec:seguranca}
+
+A autenticação dos usuários foi delegada ao \textit{Firebase Authentication}. O controle de acesso baseou-se em regras de segurança (\textit{security rules}) declaradas no próprio \textit{Firestore}, que constituíram a única camada de autorização do cliente, dispensando um servidor intermediário. As regras determinaram o perfil de cada usuário (administrador geral, administrador de instituição ou profissional de saúde) e seu estado de vínculo (pendente, ativo ou inativo) a partir do próprio documento do usuário, restringindo cada operação de leitura e escrita ao escopo da instituição correspondente. Dessa forma, garantiu-se o isolamento dos dados entre instituições distintas e a confidencialidade das informações clínicas. Os eventos gravados pelo ingestor, por utilizarem credenciais administrativas (\textit{Admin SDK}), foram inseridos diretamente, sem submissão às regras do cliente.
+
+
+\section{Aplicativo Móvel}
+\label{sec:app}
+
+A interface de acompanhamento foi desenvolvida como um aplicativo móvel multiplataforma, executável em \textit{Android} e \textit{iOS}, voltado aos profissionais de saúde. A escolha por uma aplicação móvel, em detrimento de uma interface exclusivamente \textit{web}, deveu-se à mobilidade exigida no ambiente da clínica e à possibilidade de envio de notificações \textit{push} diretamente ao dispositivo do profissional.
+
+\subsection{Tecnologias e Arquitetura}
+\label{sec:appArq}
+
+O aplicativo foi construído com o \textit{framework} \textit{React Native}, por meio da plataforma \textit{Expo} e do sistema de rotas \textit{Expo Router}. A comunicação com o banco de dados foi estabelecida diretamente entre o aplicativo e o \textit{Firestore}, por meio do \acs{SDK} do \textit{Firebase}, sem a intermediação de uma \acs{API} \acs{REST} própria. A atualização da interface em tempo real foi obtida com o mecanismo de \textit{listeners} do \textit{Firestore} (\textit{onSnapshot}), que propaga automaticamente para os clientes qualquer alteração nos dados; assim, um novo evento cardíaco gravado pelo ingestor apareceu instantaneamente no painel dos profissionais conectados.
+
+\subsection{Funcionalidades}
+\label{sec:appFunc}
+
+O aplicativo contemplou os fluxos de autenticação (cadastro, \textit{login}, recuperação de senha e tela de espera por vínculo institucional) e um conjunto de funcionalidades organizadas por perfil de usuário:
+
+\begin{itemize}
+    \item \textbf{Painel (\textit{dashboard})}: visualização, em tempo real, dos eventos cardíacos detectados, com destaque para os de natureza crítica.
+    \item \textbf{Gestão de pacientes}: cadastro, edição, consulta e remoção de pacientes vinculados à instituição.
+    \item \textbf{Gestão de dispositivos}: cadastro de dispositivos e vínculo/desvínculo com os pacientes.
+    \item \textbf{Administração}: gestão de instituições e de usuários, incluindo a ativação de profissionais pendentes, restrita aos perfis administrativos.
+    \item \textbf{Notificações}: recebimento de alertas \textit{push} a cada evento crítico detectado, viabilizado pelo serviço de notificações do \textit{Expo}.
+\end{itemize}
+
+A Tabela~\ref{tab:casosUso} sintetiza as funcionalidades do sistema sob a perspectiva dos três perfis de usuário, conforme as permissões definidas nas regras de segurança (Seção~\ref{sec:seguranca}).
+
+\begin{table}[h]
+    \centering
+    \caption{Funcionalidades da aplicação por perfil de usuário.}
+    \small
+    \begin{tabular}{>{\arraybackslash}m{6.6cm}|c|c|c}
+        \textbf{Funcionalidade} & \textbf{Profissional} & \textbf{Administrador} & \textbf{Super Admin.} \\ \hline
+        Acompanhar o painel de eventos em tempo real & Sim & Sim & Sim \\ \hline
+        Receber alertas de eventos críticos & Sim & Sim & Sim \\ \hline
+        Cadastrar e consultar pacientes & Sim & Sim & Sim \\ \hline
+        Editar e remover pacientes & --- & Sim & Sim \\ \hline
+        Vincular dispositivo a paciente & Sim & Sim & Sim \\ \hline
+        Cadastrar e remover dispositivos & --- & Sim & Sim \\ \hline
+        Registrar evento manual & Sim & Sim & Sim \\ \hline
+        Gerir usuários da instituição & --- & Sim & Sim \\ \hline
+        Gerir instituições & --- & Própria & Todas \\ \hline
+    \end{tabular}
+    \label{tab:casosUso}
+\end{table}
+
+
+\section{Estratégia de Transmissão de ECG via LoRaWAN}
+\label{sec:transmissaoLora}
+
+A transmissão de sinais de \acs{ECG} sobre \textit{LoRaWAN} constitui um desafio amplamente reconhecido na literatura, decorrente da baixa taxa de dados e das restrições regulatórias de \textit{duty cycle} do protocolo \citep{lorawanWaveform, 3-lead}. Para ilustrar a magnitude do problema, a transmissão da forma de onda completa de um sinal amostrado a 500 Hz durante 30 segundos exigiria o envio de 30.000 bytes (a 2 bytes por amostra) por segmento, volume incompatível com a capacidade do canal e com os intervalos obrigatórios entre transmissões.
+
+A abordagem inicialmente considerada — fragmentar e comprimir a forma de onda para transmiti-la em múltiplos pacotes — esbarrou nessas mesmas limitações. Em testes preliminares (Capítulo~\ref{chap:resultados}), confirmou-se que a operação em Classe~A impõe intervalos de vários segundos entre pacotes, tornando inviável o envio contínuo de blocos extensos de dados em tempo hábil para uma aplicação de monitoramento.
+
+A solução adotada deslocou o processamento para o dispositivo embarcado. Em vez de transmitir a forma de onda, o dispositivo executou localmente a detecção de arritmias (Seção~\ref{sec:deteccaoBorda}) e transmitiu apenas o resumo de 10 bytes de cada segmento. Essa estratégia é consistente com a análise de viabilidade da literatura, segundo a qual o \textit{LoRaWAN} é inadequado à transmissão contínua da forma de onda, porém plenamente viável para o envio de alertas de detecção e de parâmetros vitais, cujo volume é reduzido \citep{lorawanWaveform, ecgCompressionLora}. Como contrapartida, a forma de onda completa dos segmentos anormais permaneceu armazenada localmente (Seção~\ref{sec:armazenamento}), disponível para posterior recuperação e análise detalhada, sem onerar o canal de comunicação.
+
+
+\section{Validação do Sistema}
+\label{sec:validacao}
+
+A validação do sistema foi conduzida de forma incremental, acompanhando o desenvolvimento de cada componente. A integridade do sinal adquirido foi verificada por meio de uma ferramenta de visualização em tempo real, que recebeu as três derivações pela interface serial do dispositivo e as exibiu graficamente, permitindo avaliar a presença das ondas características do \acs{ECG} e a atuação dos filtros digitais. Um modo de diagnóstico do \textit{firmware} possibilitou alternar entre a saída do sinal bruto e a do sinal filtrado, bem como mensurar a taxa de amostragem efetiva do conversor. A consistência entre a detecção realizada na borda e os eventos persistidos em nuvem foi conferida por meio de comandos de despejo dos registros locais via interface serial, confrontando-os com os dados gravados no \textit{Firestore}. A validação da cobertura da rede e os ensaios clínicos com pacientes em atividade física supervisionada, na Clínica Escola Integrada da \acs{UFMS}, constituem etapas previstas para a conclusão do trabalho.

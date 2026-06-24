@@ -1,0 +1,36 @@
+\chapter{Conclusões}
+\label{chap:conclusoes}
+
+Este trabalho teve como objetivo o desenvolvimento de um sistema portátil e de baixo custo para o monitoramento remoto do sinal eletrocardiográfico (ECG), voltado ao acompanhamento de pacientes durante atividades físicas supervisionadas, em especial idosos atendidos na Clínica Escola Integrada da \acs{UFMS}. Ao longo do desenvolvimento, foram projetados e implementados os quatro componentes que constituem a solução: o dispositivo embarcado de aquisição e transmissão, a infraestrutura de rede \textit{LoRaWAN}, o serviço de ingestão e persistência em nuvem e o aplicativo móvel de acompanhamento.
+
+Os objetivos específicos foram, em sua maioria, contemplados. Construiu-se um protótipo do dispositivo a partir de módulos comerciais de baixo custo — o microcontrolador XIAO ESP32-S3, o \acs{AFE} ADS1293 e o módulo \textit{LoRa} Wio-SX1262 — e desenvolveu-se o \textit{firmware} embarcado responsável pela aquisição, pelo condicionamento e pelo processamento do sinal. Adotou-se, como contribuição central, uma estratégia de processamento na borda, na qual a detecção de arritmias é realizada no próprio dispositivo e apenas um resumo compacto de cada segmento é transmitido pela rede. Essa decisão mostrou-se determinante para contornar as restrições de \textit{duty cycle} e de taxa de dados do \textit{LoRaWAN}, que, conforme demonstrado nos experimentos preliminares, inviabilizam a transmissão contínua da forma de onda. Implantou-se a infraestrutura de rede com servidor \textit{ChirpStack} local e validou-se o fluxo de dados de ponta a ponta — do dispositivo à nuvem e ao aplicativo móvel —, incluindo o registro automático de eventos e o envio de alertas aos profissionais de saúde.
+
+Dessa forma, ainda que se trate de resultados preliminares, a metodologia apresentada estabeleceu uma base sólida e funcional, comprovando a viabilidade técnica da arquitetura proposta e da abordagem de detecção na borda como solução para o monitoramento cardíaco sobre redes de longo alcance e baixo consumo.
+
+
+\section{Limitações}
+\label{sec:c:limitacoes}
+
+A principal limitação identificada concentra-se na qualidade da aquisição do biopotencial. Nos ensaios preliminares, o sinal capturado apresentou um artefato periódico atribuído à ausência de uma referência de modo comum efetiva (\textit{Right-Leg Drive}), o que impediu, até o momento, a obtenção de um traçado fisiológico de boa qualidade e, por consequência, a validação do algoritmo de detecção sobre sinais reais. Adicionalmente, a operação em Classe~A do \textit{LoRaWAN}, embora adequada ao baixo consumo, impõe latência elevada à comunicação no sentido descendente, e os ensaios clínicos controlados com pacientes, bem como a caracterização do alcance da rede e da autonomia energética do dispositivo, ainda não foram realizados. O algoritmo de detecção, em sua versão atual, baseia-se em limiares fixos sobre os intervalos R-R, o que pode comprometer sua robustez frente a sinais ruidosos ou à variabilidade fisiológica entre pacientes.
+
+
+\section{Trabalhos Futuros}
+\label{sec:c:futuros}
+
+A partir das limitações identificadas, delineiam-se as seguintes frentes de continuidade:
+
+\begin{itemize}
+    \item \textbf{Refinamento da aquisição}: correção da montagem dos eletrodos e da referência \textit{Right-Leg Drive}, seguida da revalidação da qualidade do sinal e da avaliação da cadeia de filtragem digital sobre traçados fisiológicos reais.
+
+    \item \textbf{Validação clínica}: realização de testes controlados com pacientes em atividade física supervisionada na Clínica Escola Integrada da \acs{UFMS}, comparando as detecções do sistema com referências clínicas (\textit{ground truth}) para a aferição de sensibilidade e especificidade.
+
+    \item \textbf{Aprimoramento do algoritmo de detecção}: substituição da limiarização fixa por métodos mais robustos de detecção de complexos QRS e, posteriormente, a incorporação de técnicas de aprendizado de máquina — como \textit{Random Forest}, \textit{Support Vector Machines} ou redes neurais — para a classificação automática de arritmias, mediante a construção de uma base de dados anotada.
+
+    \item \textbf{Caracterização do sistema}: avaliação do consumo energético e da autonomia da bateria, bem como de ensaios de alcance e cobertura da rede em diferentes condições de operação.
+
+    \item \textbf{Encapsulamento mecânico}: projeto e construção de um invólucro definitivo, considerando ergonomia, segurança elétrica e fixação adequada ao paciente durante o exercício.
+
+    \item \textbf{Recuperação da forma de onda}: implementação de um mecanismo de transmissão sob demanda da forma de onda dos segmentos anormais armazenados localmente, possibilitando a inspeção detalhada dos eventos pelos profissionais de saúde sem onerar o canal de comunicação.
+\end{itemize}
+
+Com a conclusão dessas etapas, espera-se consolidar uma solução acessível, eficiente e validada para o monitoramento contínuo da atividade cardíaca, contribuindo para o avanço da telemedicina e do uso da Internet das Coisas na saúde, sobretudo em contextos de infraestrutura médica limitada.

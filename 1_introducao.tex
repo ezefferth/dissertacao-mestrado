@@ -1,0 +1,57 @@
+\chapter{Introdução}
+ 
+
+O envelhecimento é um processo gradual e inevitável, e quanto mais cedo se adota uma rotina de cuidados com a saúde física e mental, menores são as chances de desenvolver doenças crônicas, como diabete, hipertensão e disfunções cardiovasculares, que exigem acompanhamento prolongado e contínuo (\citeay{idosos}). Além disso, a prática regular de atividades físicas na terceira idade é essencial para mitigar os efeitos do envelhecimento, como o enfraquecimento muscular, a perda de equilíbrio, a redução da agilidade, da flexibilidade e da resistência muscular. Entretanto, estudos mostram que, mesmo com práticas saudáveis, é comum a ocorrência de arritmias cardíacas em pacientes idosos, especialmente durante a prática de exercícios físicos (\citeay{arritmiasIdosos}). 
+
+No contexto prático, a Clínica Escola Integrada, setor do Instituto Integrado de Saúde da Universidade Federal de Mato Grosso do Sul (UFMS), realiza atendimentos semanais de cerca de 25 pacientes, em sua maioria idosos, que se exercitam em uma academia adaptada para pessoas com doenças pulmonares e/ou cardíacas. Para esses pacientes, o monitoramento contínuo do sinal eletrocardiográfico (ECG) torna-se uma ferramenta essencial para a detecção precoce de episódios arrítmicos e outras anormalidades cardíacas que possam surgir durante o esforço físico.
+
+Com os avanços da tecnologia, destaca-se a evolução da \textit{Internet of Things} (IoT), que possibilita a conexão de sensores biomédicos com sistemas de análise e monitoramento remoto. Na área da saúde, a IoT promove uma abordagem mais eficiente para o cuidado de pacientes, permitindo o acompanhamento em tempo real e a detecção de eventos clínicos críticos antes que evoluam para situações de emergência (\citeay{iotBasedLorawan}; \citeay{surveySensorSmartDevices}). Em especial, o uso da comunicação de longa distância e baixo consumo de energia, proporcionado por tecnologias como o \textit{LoRaWAN} \textit{(Long Range Wide Area Network)}, abre novas possibilidades para o monitoramento contínuo em ambientes com infraestrutura limitada.
+
+O monitoramento remoto de sinais fisiológicos por meio de dispositivos baseados em IoT vem ganhando destaque como alternativa para a descentralização do cuidado à saúde, principalmente em populações vulneráveis e localidades afastadas dos grandes centros médicos (\citeay{surveyOfIoT}). Em particular, a aplicação da tecnologia LoRaWAN no monitoramento de sinais vitais, como o ECG, tem demonstrado potencial para cobrir grandes áreas geográficas com custos reduzidos, ampliando o acesso ao acompanhamento clínico de qualidade (\citeay{lorawanWaveform}; \citeay{lorawan1}).
+
+
+\section{Justificativa}
+
+\label{sec:motivacao}
+
+Apesar dos avanços no monitoramento cardíaco, os dispositivos atualmente disponíveis no mercado tendem a ser caros, de difícil acesso para grande parte da população e fortemente dependentes de infraestrutura médica avançada (\citeay{dispLowCost}). Essa realidade limita o acesso a soluções de monitoramento contínuo em áreas remotas ou em países em desenvolvimento, onde a distribuição de recursos de saúde é desigual.
+
+Estudos recentes indicam que o uso de tecnologias de comunicação de baixa potência e longo alcance, como o LoRaWAN, combinadas a sistemas de aquisição de sinais biomédicos, permite construir soluções de monitoramento remoto, eficazes e sustentáveis (\citeay{lorawanWaveform}; \citeay{3-lead}). O LoRaWAN apresenta vantagens como baixo consumo de energia, alcance de vários quilômetros, e capacidade de funcionamento em ambientes urbanos e rurais com baixa infraestrutura de telecomunicações (\citeay{lorawan1}). Essas características tornam a tecnologia ideal para a transmissão de dados biomédicos, como o ECG, em tempo real.
+
+Além disso, integrar o sistema de monitoramento de ECG com uma infraestrutura LoRaWAN privada e um servidor local proporciona maior autonomia, segurança dos dados e redução de custos operacionais, eliminando a dependência de redes públicas ou serviços de nuvem de terceiros. Essa abordagem permite uma resposta rápida em caso de eventos críticos, ao mesmo tempo, em que viabiliza a coleta e análise histórica dos sinais para apoio diagnóstico (\citeay{iotBasedLorawan}).
+
+O desenvolvimento de um aplicativo móvel voltado aos profissionais de saúde complementa a solução, permitindo o acompanhamento em tempo real dos eventos cardíacos detectados, o registro histórico dos dados e o envio automático de alertas em caso de detecção de anomalias cardíacas. Isso potencializa o uso de tecnologias baseadas em IoT para uma gestão de saúde proativa, melhorando os desfechos clínicos e otimizando recursos médicos.
+
+Dessa forma, a proposta de desenvolver um dispositivo portátil de baixo custo para registro de ECG e transmissão via LoRaWAN atende tanto às necessidades práticas da clínica escola quanto às demandas de inovação tecnológica no campo da saúde digital (e-saúde).
+
+
+
+
+\section{Objetivos}
+\label{sec:objetivos}
+
+O objetivo geral deste trabalho é desenvolver um sistema portátil e de baixo custo para monitoramento do sinal eletrocardiográfico (ECG), integrando a aquisição de sinais, a detecção de eventos cardíacos no próprio dispositivo, a transmissão remota via rede LoRaWAN própria e um aplicativo móvel para o acompanhamento em tempo real dos pacientes submetidos a atividades físicas, especialmente em ambientes com infraestrutura médica limitada.
+
+%, visando a detecção precoce de arritmias cardíacas em pacientes submetidos a atividades físicas, especialmente em ambientes com infraestrutura médica limitada.
+
+\subsection{Objetivos Específicos}
+\label{sec:objetivosEspecificos}
+
+Os objetivos específicos desse trabalho são:
+
+
+\begin{itemize}
+    \item Projetar e construir um sistema embarcado, utilizando módulos comerciais de baixo custo, especificamente um microcontrolador, um módulo de comunicação LoRa e um módulo para aquisição de biopotenciais, visando a aquisição e transmissão dos sinais de ECG.
+
+    \item Desenvolver o firmware embarcado responsável pela aquisição dos sinais de ECG, pelo seu condicionamento e processamento para a detecção de arritmias na borda, pelo armazenamento local e pela transmissão periódica dos resultados via LoRaWAN.
+
+    \item Projetar e construir o encapsulamento mecânico do dispositivo, considerando ergonomia, segurança elétrica, fixação adequada ao paciente e proteção contra movimentação excessiva durante atividades físicas.
+
+    \item Implantar e configurar a infraestrutura local da rede LoRaWAN, incluindo a instalação e configuração de um \textit{gateway} LoRa, a implantação de um servidor de rede baseado no \textit{ChirpStack}, e a integração com um serviço de ingestão e uma plataforma em nuvem para a recepção e o gerenciamento dos eventos cardíacos.
+
+    \item Desenvolver um aplicativo móvel multiplataforma para a visualização em tempo real dos eventos cardíacos detectados, o acompanhamento do histórico dos pacientes e o recebimento de alertas de eventos arrítmicos, criando a base para trabalhos futuros de apoio ao diagnóstico clínico.
+
+    \item Validar o funcionamento do sistema em ambiente real, com a realização de testes controlados com pacientes durante atividades físicas supervisionadas, avaliando parâmetros como qualidade do sinal, taxa de transmissão de dados e cobertura da rede.
+\end{itemize}
+
+
