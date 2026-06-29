@@ -28,8 +28,6 @@ Em síntese, os trabalhos analisados convergem quanto à viabilidade técnica do
 \subsection{Tecnologias de Comunicação Sem Fio Aplicadas ao Monitoramento de ECG}
 % - Trabalhos comparando BLE, Wi-Fi, LoRa para ECG
 
-%O monitoramento remoto de sinais eletrocardiográficos (\acs{ECG}) tem se tornado cada vez mais relevante em aplicações clínicas e domiciliares, exigindo tecnologias de comunicação sem fio que conciliem eficiência energética, confiabilidade e capacidade de transmissão contínua de dados. A escolha da tecnologia adequada depende de fatores como taxa de transmissão, alcance, consumo de energia e compatibilidade com dispositivos móveis.
-
 Nesta subseção são apresentadas e comparadas três das principais tecnologias utilizadas nesse contexto: Wi-Fi, ZigBee e Bluetooth Low Energy (BLE), com ênfase em suas aplicações, vantagens e limitações no monitoramento de sinais de \acs{ECG}.
 
 
@@ -77,19 +75,7 @@ As principais características técnicas do LoRaWAN incluem:
 
 
 
-
-
-% As principais características técnicas do protocolo LoRaWAN incluem a operação em bandas de frequência não licenciadas, com variações conforme a região geográfica: 868 MHz na Europa, 915 MHz nas Américas e 433 MHz em partes da Ásia (\citeauthor{s23208440}, \citeyear{s23208440}). O tamanho máximo do payload transmitido é condicionado à configuração do fator de espalhamento (spreading factor) e da largura de banda, sendo que a sobrecarga de cabeçalho típica gira em torno de 14 bytes. Além disso, dispositivos de Classe A apresentam consumo de energia extremamente baixo, com corrente de repouso inferior a 2 µA, o que viabiliza uma autonomia de bateria de até 10 anos, tornando-os ideais para aplicações remotas e de longa duração (Wio-SX1262 Datasheet, 2024). Destaca-se ainda a elevada imunidade a interferências eletromagnéticas e a robustez frente a efeitos de propagação multipercurso (multipath), proporcionadas pelo uso da modulação por espalhamento espectral do tipo chirp spread spectrum (CSS).
-
-
 No contexto da saúde digital, essas características tornam o LoRaWAN altamente adequado para aplicações de telemonitoramento, em que sensores biomédicos — como eletrodos de ECG — transmitem dados esparsos, em pacotes de pequeno volume, para uma central de análise. Isso viabiliza soluções de baixo custo, portáteis e energeticamente eficientes, capazes de operar por longos períodos em áreas carentes de cobertura de redes tradicionais.
-
-
-
-
-
-%Outra tecnologia emergente que tem ganhado atenção no contexto de monitoramento remoto de ECG é o LoRa (\textit{Long Range}), baseada em modulação por espalhamento espectral (\textit{chirp spread spectrum}). Diferente das tecnologias citadas anteriormente, o LoRa prioriza alcance e eficiência energética em detrimento da taxa de dados, operando com \textit{throughput} típico na ordem de alguns kbps. Além disso, seu alcance de vários quilômetros (5 km zonas urbanas e 15 km zonas ruais) e operação em bandas sub-GHz o tornam ideal para zonas rurais e comunidades remotas com infraestrutura limitada. A arquitetura do tipo star-of-stars permite que múltiplos dispositivos se comuniquem com um único gateway, reduzindo o custo da infraestrutura de rede (\citeay{lorawan1}). LoRaWAn possui algumas características como frequência de banda que varia em continentes, Max. payload size, largura de banda, data rate
-
 
 \subsection{A Rede \textit{LoRaWAN} no Monitoramento de Saúde}
 % (Aqui seria a nova subseção que você perguntou)
@@ -111,16 +97,13 @@ Apesar dos avanços, a literatura também evidencia limitações e desafios asso
 Diversas soluções recentes propuseram arquiteturas de monitoramento cardíaco baseadas em LoRa, com foco em sistemas vestíveis, sensores de \acs{ECG} de baixo custo e transmissão em tempo quase real para profissionais de saúde ou servidores em nuvem. Um exemplo disso é o projeto NXTGeUH, que implementa um sistema de detecção de quedas e sinais vitais utilizando LoRaWAN e sensores corporais, com aplicação voltada à telessaúde e ao monitoramento domiciliar de pacientes (\citeay{NXTGeUH}).
 
 
-Outros estudos abordam especificamente a viabilidade técnica do uso da LoRaWAN na transmissão de sinais de \acs{ECG}. A proposta de \cite{3-lead} introduz um sistema conceitual para monitoramento com três derivações de \acs{ECG} sobre LoRa, evidenciando os desafios relacionados ao tamanho do \textit{payload}, latência e \textit{duty cycle} da rede. De forma complementar, Meftah et al. (2024) apresentam uma comparação entre tecnologias sem fio — incluindo LoRa, BLE e Wi-Fi — e destacam que, embora o LoRaWAN apresente limitações de largura de banda, ele se mostra altamente eficiente para transmissão de dados vitais periódicos. No mesmo sentido, \cite{InnovativeLoRa} demonstram um sistema de monitoramento remoto de \acs{ECG} baseado em LoRa, validado durante o contexto da COVID-19, com resultados promissores em termos de precisão e autonomia energética.
+Outros estudos abordam especificamente a viabilidade técnica do uso da LoRaWAN na transmissão de sinais de \acs{ECG}. A proposta de \cite{3-lead} introduz um sistema conceitual para monitoramento com três derivações de \acs{ECG} sobre LoRa, evidenciando os desafios relacionados ao tamanho do \textit{payload}, latência e \textit{duty cycle} da rede. De forma complementar, \citeauthor{InnovativeWireless} (\citeyear{InnovativeWireless}) apresentam uma comparação entre tecnologias sem fio — incluindo LoRa, BLE e Wi-Fi — e destacam que, embora o LoRaWAN apresente limitações de largura de banda, ele se mostra altamente eficiente para transmissão de dados vitais periódicos. No mesmo sentido, \cite{InnovativeLoRa} demonstram um sistema de monitoramento remoto de \acs{ECG} baseado em LoRa, validado durante o contexto da COVID-19, com resultados promissores em termos de precisão e autonomia energética.
 
 Do ponto de vista técnico, outros trabalhos buscaram avaliar o desempenho e a viabilidade de longo prazo do uso do LoRaWAN no monitoramento contínuo de sinais biomédicos. \cite{lorawanWaveform}, por exemplo, analisam a possibilidade de transmissão contínua de formas de onda em LoRaWAN, abordando restrições regulatórias de \textit{duty cycle} e estratégias para divisão de pacotes. Além disso, o estudo de \cite{lorawanLongDistance} propõe uma arquitetura de comunicação de longa distância para dispositivos médicos, destacando a relevância da adaptação do protocolo para cenários de baixa densidade urbana. Tais abordagens reforçam que, embora existam limitações de taxa de dados e latência, as soluções baseadas em LoRaWAN podem ser altamente viáveis para ECGs de baixa frequência de amostragem, principalmente quando combinadas com estratégias de compressão e transmissão sob demanda.
 
 
-% \section{Eletrocardiograma}
-\label{sec:ecg}
-
-
 \section{Fundamentos do Eletrocardiograma}
+\label{sec:ecg}
 
 O eletrocardiograma é o registro da atividade elétrica cardíaca captada na superfície do corpo por meio de eletrodos. Cada ciclo cardíaco no traçado de \acs{ECG} apresenta deflexões características: a onda P corresponde à despolarização dos átrios, o complexo QRS representa a rápida despolarização dos ventrículos, e a onda T reflete a repolarização ventricular. Esses elementos morfológicos resultam do sistema de condução cardíaco (nó sinoatrial, nó atrioventricular, feixe de His e fibras de Purkinje) coordenando a contração do miocárdio. Clinicamente, o \acs{ECG} se consolidou como um dos exames diagnósticos mais úteis, sendo empregado rotineiramente na detecção de isquemia miocárdica, infarto do miocárdio e na avaliação de arritmias e bloqueios de condução (\citeay{goldberger_ecg2006}).
 
