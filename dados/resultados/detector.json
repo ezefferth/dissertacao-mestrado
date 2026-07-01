@@ -1,0 +1,11 @@
+{
+  "coleta": "diag_20260630_204926.csv",
+  "fs_sps": 640,
+  "detector": "Pan-Tompkins",
+  "n_picos": 41,
+  "hr": 86.6,
+  "rr_med": 692.6,
+  "rr_dp": 218.3,
+  "rr_min": 220.3,
+  "rr_max": 1431.2
+}
