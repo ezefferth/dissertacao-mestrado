@@ -309,7 +309,33 @@ A Figura~\ref{fig:diagrama_getway} apresenta o diagrama de blocos do \textit{gat
 \subsection{Servidor de Rede ChirpStack}
 \label{sec:chirpstack}
 
-Sobre o \textit{Raspberry Pi 3} foi instalado o \textit{ChirpStack}, servidor de rede \textit{LoRaWAN} de código aberto, responsável por autenticar os dispositivos, desduplicar os pacotes recebidos pelos \textit{gateways} e decodificar o \textit{payload}. Para tanto, configurou-se um decodificador (\textit{codec}) em \textit{JavaScript} que converte os 10 bytes recebidos no objeto estruturado descrito na Tabela~\ref{tab:payload}. Após a decodificação, o \textit{ChirpStack} publicou cada evento de \textit{uplink} em um \textit{broker} \acs{MQTT} (\textit{Message Queuing Telemetry Transport}), tornando os dados disponíveis para consumo pela camada de aplicação. A adoção de um servidor de rede local, em vez de uma rede pública, garantiu controle total sobre o roteamento dos dados e maior previsibilidade na comunicação, requisitos importantes em uma aplicação clínica.
+Sobre o \textit{Raspberry Pi 3} foi instalado o \textit{ChirpStack}, servidor de rede \textit{LoRaWAN} de código aberto, responsável por autenticar os dispositivos, desduplicar os pacotes recebidos pelos \textit{gateways} e decodificar o \textit{payload}. Para tanto, configurou-se um decodificador (\textit{codec}) em \textit{JavaScript} que converte os 10 bytes recebidos no objeto estruturado descrito na Tabela~\ref{tab:payload}. Essa função, apresentada na Figura~\ref{fig:decoder}, valida o comprimento do quadro, expande a máscara de bits em indicadores por anomalia e remonta os inteiros de 16 bits a partir dos pares de bytes, disponibilizando o resultado no objeto \texttt{data.object}. Após a decodificação, o \textit{ChirpStack} publicou cada evento de \textit{uplink} em um \textit{broker} \acs{MQTT} (\textit{Message Queuing Telemetry Transport}), tornando os dados disponíveis para consumo pela camada de aplicação. A adoção de um servidor de rede local, em vez de uma rede pública, garantiu controle total sobre o roteamento dos dados e maior previsibilidade na comunicação, requisitos importantes em uma aplicação clínica.
+
+\begin{figure}[ht]
+\centering
+\begin{Verbatim}[fontsize=\small, frame=single]
+function decodeUplink(input) {
+  var b = input.bytes;
+  if (!b || b.length < 10) return { errors: ["payload curto"] };
+  var flags = b[0];
+  return { data: {
+    flags: flags,
+    taqui:    (flags & 0x01) !== 0,
+    bradi:    (flags & 0x02) !== 0,
+    arritmia: (flags & 0x04) !== 0,
+    bloqueio: (flags & 0x08) !== 0,
+    parada:   (flags & 0x10) !== 0,
+    bpm:       (b[1] << 8) | b[2],
+    rrMed:     (b[3] << 8) | b[4],
+    rrDp:      (b[5] << 8) | b[6],
+    numPicos:   b[7],
+    segmentId: (b[8] << 8) | b[9]
+  }};
+}
+\end{Verbatim}
+\caption{Função decodificadora (\textit{codec}) cadastrada no \textit{ChirpStack}, que converte o \textit{payload} de 10 bytes no objeto consumido pelo serviço de ingestão.}
+\label{fig:decoder}
+\end{figure}
 
 
 \section{Ingestão e Persistência dos Dados}

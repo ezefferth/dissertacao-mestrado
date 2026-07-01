@@ -75,6 +75,28 @@ A integração entre a infraestrutura de rede e a camada de aplicação foi vali
 \textit{dispositivo} $\rightarrow$ \textit{LoRaWAN} $\rightarrow$ \textit{ChirpStack} $\rightarrow$ \acs{MQTT} $\rightarrow$ \textit{ingestor} $\rightarrow$ \textit{Firestore} $\rightarrow$ aplicativo.
 \end{center}
 
+Cada \textit{uplink} carregou o \textit{payload} de 10 bytes definido na Seção~\ref{sec:resTransmissao} (Tabela~\ref{tab:payload}), no qual o primeiro byte codifica, como máscara de bits, as anomalias detectadas e os demais transportam a frequência cardíaca média e campos auxiliares de contexto. Na recepção, a função decodificadora (\textit{codec}) cadastrada no \textit{ChirpStack} (Figura~\ref{fig:decoder}) reconstrói esses campos e os disponibiliza em \texttt{data.object}; a partir deles, o serviço de ingestão deriva o tipo de evento segundo a prioridade clínica parada $>$ bloqueio $>$ arritmia $>$ bradicardia $>$ taquicardia, preservando no registro a máscara completa com todas as anomalias do segmento.
+
+A validação empregou seis \textit{payloads} representativos, um para cada classe de evento, publicados no tópico de \textit{uplink} por meio de uma ferramenta de simulação. Em todos os casos, o serviço de ingestão decodificou os campos, derivou corretamente o tipo de evento e a frequência cardíaca, e persistiu o registro na coleção de eventos cardíacos do \textit{Firestore}, conforme a Tabela~\ref{tab:casosPipeline}. Os eventos propagaram-se, em tempo real, para o painel de monitoramento do aplicativo (Figura~\ref{fig:telasApp}a).
+
+\begin{table}[htb]
+\centering
+\caption{Casos publicados na validação do fluxo de ponta a ponta e o respectivo evento persistido no \textit{Firestore}.}
+\label{tab:casosPipeline}
+\begin{tabular}{l c c l c}
+\hline
+\textbf{Caso} & \textbf{\textit{flags}} & \textbf{BPM} & \textbf{Evento gravado} & \textbf{Crítico} \\
+\hline
+Normal        & \texttt{0x00} & 72  & NORMAL       & Não \\
+Taquicardia   & \texttt{0x01} & 120 & TAQUICARDIA  & Sim \\
+Bradicardia   & \texttt{0x02} & 48  & BRADICARDIA  & Sim \\
+Arritmia      & \texttt{0x04} & 82  & ARRITMIA     & Sim \\
+Bloqueio      & \texttt{0x08} & 50  & BLOQUEIO     & Sim \\
+Parada        & \texttt{0x10} & 56  & PARADA       & Sim \\
+\hline
+\end{tabular}
+\end{table}
+
 A consistência dos dados foi conferida confrontando os registros armazenados localmente no dispositivo, obtidos por meio dos comandos de despejo pela interface serial, com os eventos persistidos no banco em nuvem, não se observando divergências nos campos transmitidos.
 
 \section{Desenvolvimento do Aplicativo Móvel}
@@ -84,9 +106,19 @@ O aplicativo móvel foi desenvolvido com \textit{React Native} sobre a plataform
 
 As telas operacionais contemplaram o painel de eventos cardíacos, atualizado em tempo real pelo mecanismo de \textit{listeners} do \textit{Firestore}; a gestão de pacientes (cadastro, edição, consulta e remoção); a gestão de dispositivos, com vínculo e desvínculo de pacientes; e as funções administrativas de gestão de instituições e de usuários, incluindo a ativação de profissionais pendentes. O recebimento de alertas por meio de notificações \textit{push}, a cada evento crítico, foi integrado ao serviço de notificações do \textit{Expo}. A leitura e a escrita diretas no \textit{Firestore}, sem \acs{API} intermediária, simplificaram a arquitetura e reduziram a latência de atualização da interface.
 
-% FIGURAS PENDENTES: telas do aplicativo (login, dashboard de eventos em tempo real,
-% lista de pacientes, gestão de dispositivos, notificação de alerta). Capturar do app Expo
-% em execução e salvar em assets/.
+As principais telas do aplicativo são apresentadas na Figura~\ref{fig:telasApp}. Destaca-se o painel de eventos cardíacos (Figura~\ref{fig:telasApp}a), no qual os eventos transmitidos pelo dispositivo — validados na Seção~\ref{sec:resPipeline} — são exibidos em tempo real, com indicação do tipo de anomalia, da frequência cardíaca e do paciente associado.
+
+\begin{figure}[htb]
+\centering
+\subfloat[Painel de eventos cardíacos]{\includegraphics[width=0.30\linewidth]{assets/telaMonitoramento.jpeg}}\hfill
+\subfloat[Pacientes]{\includegraphics[width=0.30\linewidth]{assets/telaPacientes.jpeg}}\hfill
+\subfloat[Dispositivos]{\includegraphics[width=0.30\linewidth]{assets/telaDispositivos.jpeg}}\\[1ex]
+\subfloat[Usuários]{\includegraphics[width=0.30\linewidth]{assets/telaUsuarios.jpeg}}\hfill
+\subfloat[Instituições]{\includegraphics[width=0.30\linewidth]{assets/telaEntidades.jpeg}}\hfill
+\subfloat[Configurações]{\includegraphics[width=0.30\linewidth]{assets/telaConfiguracoes.jpeg}}
+\caption{Telas principais do aplicativo móvel: (a) painel de eventos cardíacos em tempo real, (b) gestão de pacientes, (c) gestão de dispositivos, (d) gestão de usuários, (e) gestão de instituições e (f) configurações.}
+\label{fig:telasApp}
+\end{figure}
 
 
 \section{Detecção na Borda e Redução do Payload}
