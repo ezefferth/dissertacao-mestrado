@@ -23,6 +23,16 @@ Em uma perspectiva voltada à equidade no acesso à saúde, \cite{dispLowCost} a
 Em síntese, os trabalhos analisados convergem quanto à viabilidade técnica do monitoramento remoto de \acs{ECG} baseado em IoT, mas evidenciam um compromisso recorrente entre a tecnologia de comunicação adotada e os requisitos de alcance, consumo energético e taxa de dados. Enquanto soluções baseadas em Wi-Fi e ZigBee privilegiam a taxa de transmissão em detrimento do alcance e da autonomia, as abordagens emergentes baseadas em LoRa buscam justamente o oposto, abrindo espaço para o monitoramento em áreas extensas e com infraestrutura limitada, contexto no qual se insere este trabalho.
 
 
+\subsection{Detecção Embarcada de Anomalias no ECG}
+\label{sec:deteccaoEmbarcada}
+
+Diferentemente dos trabalhos anteriores, centrados na aquisição e na transmissão do sinal, \citeay{moraesFirmwareECG} concentraram-se no processamento e na detecção automática de anomalias diretamente no dispositivo. Os autores desenvolveram um \textit{firmware} para o monitor multiparâmetros MP3.5, executado em um microcontrolador ESP32-S3, capaz de identificar, em tempo real, cinco anomalias associadas a alterações nos intervalos R-R do \acs{ECG}: taquicardia, bradicardia, arritmia, bloqueio e parada sinusais. A detecção dos picos R empregou o método da operação de diferenças (DOM, \textit{Difference Operation Method}), baseado na diferenciação do sinal, na filtragem passa-baixas e no pareamento de máximos e mínimos locais para localizar o complexo QRS; a partir dos picos detectados, os intervalos R-R foram analisados estatisticamente para a classificação das anomalias. O processamento foi realizado sobre segmentos de 30~s, e a validação, conduzida com a base de dados MIT-BIH e com sinais simulados acrescidos de ruído controlado, alcançou taxa de acerto de 99,92\% na detecção dos picos R e de 99,67\% na identificação das anomalias.
+
+Esse trabalho constitui a base do algoritmo de detecção embarcada adotado nesta dissertação. Enquanto o sistema original foi concebido para um monitor multiparâmetros com processamento local, o presente trabalho parte do mesmo método de detecção e o integra a uma arquitetura de transmissão de longo alcance por \textit{LoRaWAN}, com o posterior encaminhamento dos eventos para a nuvem e para um aplicativo móvel — aspecto não contemplado no trabalho de origem, e que constitui uma das contribuições desta pesquisa.
+
+% TODO (ao receber o trabalho completo do Claudinei): completar os dados de publicação
+% da entrada moraesFirmwareECG no main.bib; se pertinente, citar Yeh e Wang (método DOM
+% original) e outros trabalhos correlatos de detecção embarcada que o usuário fornecer.
 
 
 \subsection{Tecnologias de Comunicação Sem Fio Aplicadas ao Monitoramento de ECG}
