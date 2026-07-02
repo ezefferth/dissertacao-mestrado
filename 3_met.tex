@@ -164,6 +164,10 @@ O CJMCU-1293 é um módulo de desenvolvimento que integra o \acs{AFE} (\textit{A
 
 A configuração do ADS1293 foi realizada para operação em três derivações (\textit{3-Lead}), com a detecção de modo comum e o amplificador RLD habilitados, condições necessárias à obtenção de um sinal limpo durante a movimentação do paciente.
 
+Em uma aplicação convencional, o amplificador RLD requer um quarto eletrodo, posicionado na perna direita do paciente, para o qual o sinal de contrarreação de modo comum é drenado. Com o objetivo de reduzir o número de cabos e simplificar a montagem, optou-se por dispensar esse eletrodo dedicado e adotar uma topologia de \textit{driven-leg} com apenas três eletrodos, na qual as funções de detecção e de contrarreação do modo comum são atribuídas a eletrodos distintos.
+
+A detecção de modo comum, realizada pelo \textit{Common-Mode Detector} do ADS1293, calcula a média das tensões dos pinos de entrada habilitados no registrador \texttt{CMDET\_EN} \citep{TexasInstruments_ADS1293}. Habilitaram-se apenas os pinos IN1 e IN3 (\texttt{CMDET\_EN = 0x05}), correspondentes aos eletrodos do braço direito (RA) e da perna esquerda (LL), deixando o eletrodo do braço esquerdo (LA) livre para receber a contrarreação. O roteamento da saída do RLD, por sua vez, é definido pelos três bits menos significativos (campo \textit{SELRLD}) do registrador \texttt{RLD\_CN}: enquanto o valor padrão da biblioteca de controle (\texttt{SELRLD = 100}) direciona a saída ao pino IN4 (eletrodo de perna direita), o valor adotado neste trabalho (\texttt{SELRLD = 010}) a direciona ao pino IN2, associado ao eletrodo LA. Dessa forma, a média de modo comum é obtida de RA e LL e reinjetada por LA, mantendo-se a separação entre os eletrodos de detecção e de contrarreação característica da topologia clássica de \textit{driven-leg} e obtendo-se a atenuação do ruído de modo comum de 60~Hz com apenas três eletrodos.
+
 
 \section{Firmware Embarcado}
 \label{sec:firmware}

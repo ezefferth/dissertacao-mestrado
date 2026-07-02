@@ -57,13 +57,42 @@ Esse valor foi confirmado analiticamente a partir da cadeia de divisores do conv
 
 A aquisição do sinal foi avaliada por meio de uma ferramenta de visualização que recebe as três derivações pela interface serial do dispositivo. Nos ensaios preliminares, com o cabo de eletrodos posicionado segundo o triângulo de \textit{Einthoven}, o sinal capturado apresentou uma oscilação periódica de amplitude aproximadamente uniforme, em torno de 6,4 Hz, sem as deflexões características do complexo QRS, da onda P e da onda T. Em consequência, o algoritmo de detecção não identificou picos R consistentes, sinalizando a maior parte dos segmentos como erro de processamento.
 
-A investigação atribuiu o fenômeno à ausência de uma referência de modo comum efetiva: o amplificador de perna direita (\textit{Right-Leg Drive} -- RLD), necessário para estabilizar o potencial do corpo em relação ao circuito de entrada, não estava adequadamente conectado, deixando as entradas diferenciais sujeitas a interferência de modo comum. Como medida corretiva, em andamento, optou-se por reconfigurar a montagem dos três eletrodos de modo a dedicar uma das entradas à referência RLD, privilegiando a derivação II — utilizada pelo algoritmo de detecção. A revalidação da qualidade do sinal, após essa correção, constitui etapa imediata do trabalho.
+A investigação atribuiu o fenômeno à ausência de uma referência de modo comum efetiva: o amplificador de perna direita (\textit{Right-Leg Drive} -- RLD), necessário para estabilizar o potencial do corpo em relação ao circuito de entrada, não estava adequadamente conectado, deixando as entradas diferenciais sujeitas a interferência de modo comum. Como medida corretiva, adotou-se a configuração de \textit{driven-leg} de três eletrodos descrita na Seção~\ref{sec:cjmcu}, na qual a detecção de modo comum é realizada sobre os eletrodos RA e LL (\texttt{CMDET\_EN = 0x05}) e a contrarreação é reinjetada pelo eletrodo LA (\texttt{SELRLD = 010}).
 
-% FIGURA PENDENTE: inserir, após recaptura com RLD corrigido, o traçado da derivação II
-% (sinal bruto vs. filtrado) exportado pelo plotter/scripts de análise em C:\Work\mestrado\dados.
-% Ex.: \begin{figure}...\includegraphics{assets/sinal_lead2.pdf}...\end{figure}
+A revalidação foi conduzida em um teste de bancada com o sistema conectado ao próprio autor. Registraram-se 30~s do sinal bruto de cada derivação (modo de diagnóstico, sem filtragem) a uma taxa efetiva de 596~amostras/s. Após a correção, a derivação II passou a exibir os complexos QRS de forma nítida e com a polaridade esperada, além das ondas P e T, permitindo a estimativa de uma frequência cardíaca em torno de 90~bpm. A Figura~\ref{fig:sinalLead2} apresenta um trecho de 5~s da derivação II, no qual se contrasta o sinal bruto com a saída da cadeia de filtros digitais replicada em \textit{software} (passa-baixas de 40~Hz e passa-altas de 0,5~Hz, Seção~\ref{sec:condicionamento}), evidenciando a remoção do desvio de linha de base e a preservação da morfologia do complexo QRS.
 
-Cabe destacar que a cadeia de condicionamento digital — composta pelos filtros passa-baixas (40 Hz) e passa-altas (0,5 Hz) descritos na Seção~\ref{sec:condicionamento} — foi implementada e validada em termos de resposta sobre sinais de teste, restando sua avaliação sobre um sinal fisiológico de boa qualidade.
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.95\textwidth]{assets/sinal_lead2_rld.pdf}
+\caption{Trecho de 5~s da derivação II adquirida no teste de bancada, com o RLD ativo: sinal bruto (acima) e após a cadeia de filtros digitais do \textit{firmware} (abaixo).}
+\label{fig:sinalLead2}
+\end{figure}
+
+Para quantificar o efeito do RLD sobre a interferência da rede elétrica, o teste foi repetido sob duas condições — RLD ativo e RLD desconectado (\texttt{SELRLD = 000}) — mantendo-se inalterados os eletrodos e o ambiente. Estimou-se, por análise espectral, a fração da energia do sinal concentrada em torno de 60~Hz em cada derivação, conforme a Tabela~\ref{tab:rld60hz}. A ativação do RLD reduziu a energia de 60~Hz em todas as derivações, com maior efeito na derivação III — a mais sensível ao modo comum —, na qual a fração caiu de 0,13\,\% para 0,03\,\% (redução de aproximadamente 4~vezes; valor eficaz reduzido em cerca de 2,1~vezes). A Figura~\ref{fig:espectroRld} ilustra essa atenuação no espectro da derivação III. Observa-se que, mesmo sem o RLD, o ruído de 60~Hz manteve-se baixo, indicando um ambiente eletromagneticamente favorável no ensaio; em cenários mais ruidosos, espera-se um benefício proporcionalmente maior do RLD.
+
+\begin{table}[htb]
+\centering
+\caption{Fração da energia do sinal em torno de 60~Hz, por derivação, com o RLD desconectado e ativo (teste de bancada, 30~s por condição).}
+\label{tab:rld60hz}
+\begin{tabular}{l c c c}
+\hline
+\textbf{Derivação} & \textbf{RLD desconectado} & \textbf{RLD ativo} & \textbf{Redução} \\
+\hline
+I   & 0,22\,\% & 0,05\,\% & 4,4$\times$ \\
+II  & 0,05\,\% & 0,01\,\% & 5,0$\times$ \\
+III & 0,13\,\% & 0,03\,\% & 4,3$\times$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.9\textwidth]{assets/espectro_rld.pdf}
+\caption{Espectro da derivação III no teste de bancada, com o RLD desconectado e ativo. A linha tracejada indica a frequência da rede elétrica (60~Hz).}
+\label{fig:espectroRld}
+\end{figure}
+
+Cabe destacar que a cadeia de condicionamento digital — composta pelos filtros passa-baixas (40~Hz) e passa-altas (0,5~Hz) descritos na Seção~\ref{sec:condicionamento} — foi assim avaliada sobre um sinal fisiológico real de boa qualidade, confirmando a remoção do desvio de linha de base e a preservação das deflexões de interesse.
 
 
 \section{Validação do Fluxo de Dados de Ponta a Ponta}
