@@ -104,6 +104,17 @@ O ADS1293 registrou os sinais bioelétricos do coração e os entregou já digit
     \label{tab:pinagem}
 \end{table}
 
+A Figura~\ref{fig:conexoes} sintetiza a interligação completa entre os módulos. A comunicação com o ADS1293 emprega sete conexões: cinco de natureza digital e duas de alimentação. As linhas digitais compreendem o barramento \acs{SPI} propriamente dito — \textit{clock} (SCK), dados do microcontrolador para o \acs{AFE} (MOSI, ligado ao pino SDI do módulo), dados do \acs{AFE} para o microcontrolador (MISO, ligado ao pino SDO) e seleção de dispositivo (CS, ligado ao pino CSB) — acrescidas do sinal de interrupção \acs{DRDY} (pino DRDYB), que sinaliza cada nova amostra disponível. As duas conexões restantes são a alimentação de 3,3~V e o terra comum.
+
+Quanto à energia, o conjunto é alimentado por uma bateria de íons de lítio de 3,7~V conectada diretamente aos terminais de bateria (BAT) do XIAO ESP32-S3; o regulador interno do microcontrolador disponibiliza os 3,3~V que alimentam o ADS1293, respeitando o limite de tensão analógica (\textit{AVDD}) de 3,6~V do componente. A porta USB-C destina-se exclusivamente à recarga da bateria, não alimentando o circuito durante a operação. O módulo \textit{LoRa} Wio-SX1262, por sua vez, ocupa um barramento \acs{SPI} dedicado, com pinos internos distintos, o que elimina conflito de comunicação com o \acs{AFE}.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.95\textwidth]{assets/diagrama_conexoes.pdf}
+\caption{Diagrama de conexões do protótipo: interface \acs{SPI} e interrupção entre o \acs{AFE} CJMCU-1293 (ADS1293) e o XIAO ESP32-S3, alimentação a partir da bateria de íons de lítio e recarga por USB-C. As cores dos condutores são ilustrativas e a ordem dos terminais é esquemática.}
+\label{fig:conexoes}
+\end{figure}
+
 A aquisição foi realizada segundo o triângulo de \textit{Einthoven}, obtendo-se três derivações a partir dos eletrodos de membros. As derivações I e II foram medidas diretamente pelos canais 1 e 2 do ADS1293, e a derivação III foi calculada por meio da lei de \textit{Einthoven}, conforme as Equações~\ref{eq:leadI} a~\ref{eq:leadIII}:
 
 \begin{align}
