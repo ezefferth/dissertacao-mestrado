@@ -9,10 +9,18 @@ Neste capítulo são apresentados e discutidos os resultados preliminares obtido
 
 O protótipo do dispositivo de aquisição foi montado integrando os três módulos comerciais selecionados: o microcontrolador XIAO ESP32-S3, o módulo \textit{LoRa} Wio-SX1262 e o \acs{AFE} de \acs{ECG} CJMCU-1293. A interligação seguiu a pinagem \acs{SPI} descrita na Seção~\ref{sec:arqDispositivo}, com o ADS1293 conectado ao barramento \acs{SPI} principal e o Wio-SX1262 ao seu barramento dedicado, evitando conflito entre os dois periféricos. O conjunto foi alimentado por uma bateria de íons de lítio de 3,7~V, com o ADS1293 mantido em 3,3~V para respeitar o limite de tensão analógica do componente.
 
-Durante a montagem, validou-se o reconhecimento de ambos os periféricos pelo microcontrolador: o ADS1293 respondeu à configuração de registradores e passou a gerar interrupções de \textit{Data Ready} em taxa constante, enquanto o Wio-SX1262 completou com sucesso o processo de \textit{join} \acs{OTAA} na rede \textit{LoRaWAN} local. O encapsulamento mecânico definitivo, considerando ergonomia, segurança elétrica e fixação ao paciente durante a atividade física, encontra-se em fase de projeto.
+Durante a montagem, validou-se o reconhecimento de ambos os periféricos pelo microcontrolador: o ADS1293 respondeu à configuração de registradores e passou a gerar interrupções de \textit{Data Ready} em taxa constante, enquanto o Wio-SX1262 completou com sucesso o processo de \textit{join} \acs{OTAA} na rede \textit{LoRaWAN} local.
 
-% FIGURA PENDENTE: fotografia do protótipo montado (XIAO ESP32-S3 + Wio-SX1262 + CJMCU-1293
-% + bateria) e, quando disponível, do encapsulamento. Salvar em assets/ e inserir aqui.
+O conjunto foi acomodado em um invólucro impresso em 3D, que serve de encapsulamento do protótipo. A Figura~\ref{fig:prototipo} apresenta o dispositivo construído. Na vista interna (Figura~\ref{fig:prototipo}a) distinguem-se a bateria de íons de lítio, a placa do \acs{AFE} CJMCU-1293 com o conector da antena \textit{LoRa} e, na base, o conjunto XIAO ESP32-S3 com o módulo Wio-SX1262. Com o invólucro fechado (Figura~\ref{fig:prototipo}b), o dispositivo conecta-se ao paciente por um cabo de três derivações terminado em eletrodos de pressão (\textit{snap}) nas cores do padrão internacional IEC (\textit{International Electrotechnical Commission}) — vermelho (braço direito), amarelo (braço esquerdo) e verde (perna esquerda). A vista lateral (Figura~\ref{fig:prototipo}c) evidencia a porta USB-C destinada à recarga da bateria e as aberturas de ventilação. O invólucro definitivo, considerando ergonomia, segurança elétrica e fixação ao paciente durante a atividade física, encontra-se em fase de refinamento.
+
+\begin{figure}[htb]
+\centering
+\subfloat[Vista interna (invólucro aberto)]{\includegraphics[width=0.30\linewidth]{assets/figura_03_prototipo_componentes_internos.jpg}}\hfill
+\subfloat[Dispositivo montado e cabo de eletrodos]{\includegraphics[width=0.30\linewidth]{assets/figura_01_prototipo_vista_superior_eletrodos.jpg}}\\[1ex]
+\subfloat[Vista lateral: porta USB-C de recarga]{\includegraphics[width=0.55\linewidth]{assets/figura_02_prototipo_conector_usbc.jpg}}
+\caption{Protótipo do dispositivo de aquisição de \acs{ECG}: (a) vista interna com os módulos (CJMCU-1293, XIAO ESP32-S3 e Wio-SX1262) e a bateria de íons de lítio; (b) dispositivo montado no invólucro impresso em 3D, com o cabo de três derivações e eletrodos \textit{snap}; (c) vista lateral, com a porta USB-C de recarga.}
+\label{fig:prototipo}
+\end{figure}
 
 
 \section{Desenvolvimento do Firmware Embarcado}
