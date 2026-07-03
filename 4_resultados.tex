@@ -165,10 +165,34 @@ A estratégia de detecção na borda foi verificada quanto ao seu efeito sobre o
 
 Essa abordagem é coerente com a análise de viabilidade da literatura, segundo a qual o \textit{LoRaWAN} é adequado à transmissão de alertas de detecção e de parâmetros vitais, porém não à da forma de onda contínua \citep{lorawanWaveform}. A preservação local da forma de onda dos segmentos anormais (Seção~\ref{sec:armazenamento}) manteve a possibilidade de análise detalhada \textit{a posteriori}, sem onerar o canal.
 
-A validação clínica do desempenho do algoritmo de detecção — sensibilidade e especificidade na identificação das arritmias em sinais reais — depende da obtenção de um sinal de \acs{ECG} de boa qualidade e dos ensaios com pacientes, e constitui etapa subsequente do trabalho.
+\subsection{Avaliação preliminar do detector de arritmia sinusal}
+\label{sec:resArritmia}
+
+Além da validação do sinal (Seção~\ref{sec:resSinal}), o algoritmo de detecção foi exercitado em um teste de bancada preliminar, com o sistema conectado ao próprio autor e a detecção ativa sobre segmentos de 30~s. Registraram-se sessões em duas posturas — em decúbito dorsal (repouso) e sentado. Os detectores de eventos clinicamente críticos — taquicardia, bradicardia, bloqueio e parada sinoatrial — não produziram falsos positivos em nenhuma das sessões. O detector de \textit{arritmia sinusal}, entretanto, sinalizou praticamente todos os segmentos.
+
+A causa foi identificada no critério de decisão: o algoritmo marca o segmento como arritmia quando ocorre ao menos uma variação batimento-a-batimento do intervalo R-R superior a 120~ms. Em repouso, a arritmia sinusal respiratória — variação fisiológica e benigna do ritmo com a respiração, acentuada pelo predomínio vagal — produz, por si só, cerca de 8 a 15 dessas variações por segmento de 30~s, de modo que o critério dispara em todos os segmentos. A rejeição dos batimentos eventualmente não detectados (intervalos R-R próximos ao dobro da mediana) removeu apenas uma fração das ocorrências, confirmando que a maior parte da variabilidade é de origem fisiológica.
+
+A Tabela~\ref{tab:arritmiaPostura} resume a comparação entre as posturas. A frequência cardíaca elevou-se de cerca de 67~bpm, em repouso, para cerca de 92~bpm, na posição sentada, evidenciando que a aquisição acompanha corretamente a resposta autonômica; a taxa de segmentos sinalizados como arritmia, contudo, permaneceu elevada em ambas as condições, indicando que a manipulação postural não altera a especificidade do critério.
+
+\begin{table}[htb]
+\centering
+\caption{Avaliação preliminar do detector de arritmia sinusal em duas posturas (teste de bancada, segmentos de 30~s).}
+\label{tab:arritmiaPostura}
+\begin{tabular}{l c c c}
+\hline
+\textbf{Condição} & \textbf{FC média} & \textbf{Variações R-R $>$120~ms} & \textbf{Segmentos} \\
+                  & \textbf{(bpm)}    & \textbf{por segmento (média)}    & \textbf{sinalizados} \\
+\hline
+Decúbito (repouso) & $\approx$67 & $\approx$7,8 & 100\,\% \\
+Sentado            & $\approx$92 & $\approx$8,6 & 100\,\% \\
+\hline
+\end{tabular}
+\end{table}
+
+Conclui-se que o critério de detecção de arritmia sinusal baseado na variabilidade do intervalo R-R apresenta especificidade intrinsecamente baixa para indivíduos saudáveis, uma vez que a arritmia sinusal respiratória constitui, ela própria, uma variação sinusal do ritmo. Trata-se de uma limitação conhecida da abordagem, e não de uma falha da montagem. Como decisão de escopo, a arritmia sinusal passou a ser tratada como informação de contexto, e não como alerta crítico, preservando-se como eventos críticos a taquicardia, a bradicardia e as pausas (bloqueio e parada sinoatrial), cuja detecção se mostrou específica. A caracterização quantitativa de sensibilidade e especificidade sobre bases de dados anotadas e em ensaios clínicos constitui etapa subsequente do trabalho.
 
 
 \section{Considerações sobre os Resultados Preliminares}
 \label{sec:resConsideracoes}
 
-Os resultados preliminares, embora ainda parciais, validaram as decisões estruturais do projeto. Consolidou-se a infraestrutura \textit{LoRaWAN} com servidor de rede local; determinou-se a taxa de amostragem efetiva do conversor; verificou-se a integração de ponta a ponta entre o dispositivo, a nuvem e o aplicativo; e confirmou-se que a detecção na borda viabiliza a operação do sistema sobre \textit{LoRaWAN}. O principal obstáculo remanescente concentra-se na qualidade da aquisição do biopotencial, cuja correção está em curso. A experiência acumulada subsidiará as etapas finais, que incluem a revalidação do sinal após o ajuste da referência RLD, os testes de cobertura da rede e os ensaios clínicos controlados na Clínica Escola Integrada da \acs{UFMS}.
+Os resultados preliminares, embora ainda parciais, validaram as decisões estruturais do projeto. Consolidou-se a infraestrutura \textit{LoRaWAN} com servidor de rede local; determinou-se a taxa de amostragem efetiva do conversor; corrigiu-se a aquisição do biopotencial por meio da reconfiguração da referência de modo comum (RLD), obtendo-se um sinal de \acs{ECG} com morfologia adequada e ruído de rede atenuado; verificou-se a integração de ponta a ponta entre o dispositivo, a nuvem e o aplicativo; e confirmou-se que a detecção na borda viabiliza a operação do sistema sobre \textit{LoRaWAN}. A avaliação preliminar da detecção evidenciou, ainda, a baixa especificidade do critério de arritmia sinusal para indivíduos saudáveis, o que motivou seu tratamento como informação de contexto. As etapas finais compreendem a caracterização quantitativa do desempenho de detecção sobre bases anotadas, os testes de cobertura da rede e os ensaios clínicos controlados na Clínica Escola Integrada da \acs{UFMS}.
