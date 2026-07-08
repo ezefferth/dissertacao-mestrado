@@ -190,6 +190,8 @@ O \textit{firmware} do dispositivo foi desenvolvido em C++ sobre a plataforma \t
 
 As amostras brutas, fornecidas pelo conversor de 24 bits, foram convertidas para a escala de tensão segundo a relação $v = (raw / 2^{23}) \cdot V_{ref}$. Em seguida, cada derivação foi submetida a uma cascata de dois filtros digitais de resposta ao impulso infinita (\acs{IIR}): um filtro passa-baixas, com frequência de corte de 40 Hz, para atenuar o ruído muscular e a interferência da rede elétrica; e um filtro passa-altas, com frequência de corte de 0,5 Hz, para remover o desvio de linha de base (\textit{baseline wander}) e a componente contínua de \textit{offset} dos eletrodos. Os coeficientes dos filtros foram calculados para a taxa de amostragem efetiva do sistema, determinada experimentalmente conforme descrito no Capítulo~\ref{chap:resultados}.
 
+A saída de depuração pela interface serial foi desacoplada da aquisição, de modo a preservar a integridade temporal do sinal processado. Como a impressão das três derivações a cada amostra, na taxa efetiva de 640 SPS, excede a capacidade do enlace serial, a operação de escrita poderia bloquear o laço principal e ocasionar a perda de interrupções \acs{DRDY}, introduzindo descontinuidades no \textit{buffer} e distorcendo os intervalos R-R. Para evitá-lo, a saída de depuração foi decimada — apenas uma a cada quatro amostras é enviada à serial —, enquanto o \textit{buffer} de detecção continuou a receber todas as amostras. Preservou-se, assim, a visualização em tempo real sem comprometer o sinal efetivamente submetido à detecção.
+
 \subsection{Detecção de Eventos na Borda}
 \label{sec:deteccaoBorda}
 
@@ -235,7 +237,7 @@ $\mathcal{R} \leftarrow \emptyset$\;
 \Return $\mathcal{R}$\;
 \end{algorithm}
 
-Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm); as demais categorias basearam-se na variabilidade e nas diferenças entre intervalos R-R sucessivos. Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
+Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm); as demais categorias basearam-se na variabilidade e nas diferenças entre intervalos R-R sucessivos. A taquicardia e a bradicardia podem coexistir com a arritmia sinusal em um mesmo segmento, sendo ambas registradas na máscara de bits; apenas as pausas graves (bloqueio e parada) têm precedência sobre a bradicardia. Dessa forma, a arritmia sinusal, de caráter informativo e baixa especificidade, não mascara os eventos de frequência cardíaca, cuja prioridade final é resolvida na ingestão (Seção~\ref{sec:resPipeline}). Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
 
 \begin{algorithm}[ht]
 \caption{Classificação de arritmias a partir dos intervalos R-R}
@@ -254,7 +256,7 @@ $a \leftarrow 0$;\ $b \leftarrow 0$;\ $p \leftarrow 0$\tcp*{contadores: arritmia
   \lIf{$RR[i] > 6000$ \textbf{e} $RR[i] \neq 4\,RR[0]$}{$p \leftarrow p+1$}
 }
 \lIf{$\overline{RR} < RR_{taq}$}{\textbf{Taquicardia}}
-\lIf{$\overline{RR} > RR_{bra}$ \textbf{e} $a=b=p=0$}{\textbf{Bradicardia}}
+\lIf{$\overline{RR} > RR_{bra}$ \textbf{e} $b=p=0$}{\textbf{Bradicardia}}
 \lIf{$a>0$ \textbf{e} $b=p=0$}{\textbf{Arritmia sinusal}}
 \lIf{$b>1$ \textbf{e} $p=0$}{\textbf{Bloqueio sinoatrial}}
 \lIf{$p>0$}{\textbf{Parada sinoatrial}}
@@ -438,8 +440,11 @@ O aplicativo contemplou os fluxos de autenticação (cadastro, \textit{login}, r
     \item \textbf{Gestão de pacientes}: cadastro, edição, consulta e remoção de pacientes vinculados à instituição.
     \item \textbf{Gestão de dispositivos}: cadastro de dispositivos e vínculo/desvínculo com os pacientes.
     \item \textbf{Administração}: gestão de instituições e de usuários, incluindo a ativação de profissionais pendentes, restrita aos perfis administrativos.
+    \item \textbf{Regras de alarme}: configuração, por tipo de anomalia, do critério de confirmação por persistência, atenuando alarmes falsos por detecções isoladas.
     \item \textbf{Notificações}: recebimento de alertas \textit{push} a cada evento crítico detectado, viabilizado pelo serviço de notificações do \textit{Expo}.
 \end{itemize}
+
+Como mecanismo de redução de alarmes falsos, o aplicativo incorporou uma regra de confirmação por persistência baseada em janela deslizante: uma anomalia só foi promovida a alarme quando detectada em pelo menos $X$ dos últimos $N$ segmentos de um mesmo paciente, com os valores de $X$ e $N$ configuráveis pelo profissional para cada classe de evento. Os limiares padrão foram ajustados conforme a gravidade clínica: os eventos de pausa (bloqueio e parada sinoatrial), mais graves e específicos, confirmam-se de imediato; a taquicardia e a bradicardia exigem persistência de alguns segmentos; e a arritmia sinusal, de especificidade intrinsecamente baixa (Seção~\ref{sec:resArritmia}), requer confirmação em uma janela mais longa. Todos os segmentos permaneceram registrados no histórico; a regra atuou exclusivamente sobre a sinalização de alarme, distinguindo o registro do evento de sua promoção a alerta crítico.
 
 A Tabela~\ref{tab:casosUso} sintetiza as funcionalidades do sistema sob a perspectiva dos três perfis de usuário, conforme as permissões definidas nas regras de segurança (Seção~\ref{sec:seguranca}).
 
@@ -458,6 +463,7 @@ A Tabela~\ref{tab:casosUso} sintetiza as funcionalidades do sistema sob a perspe
         Registrar evento manual & Sim & Sim & Sim \\ \hline
         Gerir usuários da instituição & --- & Sim & Sim \\ \hline
         Gerir instituições & --- & Própria & Todas \\ \hline
+        Configurar regras de alarme & Sim & Sim & Sim \\ \hline
     \end{tabular}
     \label{tab:casosUso}
 \end{table}
@@ -476,4 +482,13 @@ A solução adotada deslocou o processamento para o dispositivo embarcado. Em ve
 \section{Validação do Sistema}
 \label{sec:validacao}
 
-A validação do sistema foi conduzida de forma incremental, acompanhando o desenvolvimento de cada componente. A integridade do sinal adquirido foi verificada por meio de uma ferramenta de visualização em tempo real, que recebeu as três derivações pela interface serial do dispositivo e as exibiu graficamente, permitindo avaliar a presença das ondas características do \acs{ECG} e a atuação dos filtros digitais. Um modo de diagnóstico do \textit{firmware} possibilitou alternar entre a saída do sinal bruto e a do sinal filtrado, bem como mensurar a taxa de amostragem efetiva do conversor. A consistência entre a detecção realizada na borda e os eventos persistidos em nuvem foi conferida por meio de comandos de despejo dos registros locais via interface serial, confrontando-os com os dados gravados no \textit{Firestore}. A validação da cobertura da rede e os ensaios clínicos com pacientes em atividade física supervisionada, na Clínica Escola Integrada da \acs{UFMS}, constituem etapas previstas para a conclusão do trabalho.
+A validação do sistema foi conduzida de forma incremental, acompanhando o desenvolvimento de cada componente. A integridade do sinal adquirido foi verificada por meio de uma ferramenta de visualização em tempo real, que recebeu as três derivações pela interface serial do dispositivo e as exibiu graficamente, permitindo avaliar a presença das ondas características do \acs{ECG} e a atuação dos filtros digitais. Um modo de diagnóstico do \textit{firmware} possibilitou alternar entre a saída do sinal bruto e a do sinal filtrado, bem como mensurar a taxa de amostragem efetiva do conversor. A consistência entre a detecção realizada na borda e os eventos persistidos em nuvem foi conferida por meio de comandos de despejo dos registros locais via interface serial, confrontando-os com os dados gravados no \textit{Firestore}.
+
+\subsection{Validação com Gerador de Sinais Padrão}
+\label{sec:validacaoGerador}
+
+Para avaliar objetivamente a cadeia de processamento e transmissão, isolando-a da variabilidade inerente à aquisição por eletrodos no corpo, empregou-se um gerador de sinais (\textit{National Instruments} myDAQ, operado pelo \textit{software} NI-ELVISmx) como fonte de formas de onda de \acs{ECG} de classe conhecida. Os sinais foram reproduzidos na saída analógica do gerador e injetados diretamente no conector de entrada do dispositivo, no lugar dos eletrodos, submetendo a mesma forma de onda ao \acs{AFE}, ao \textit{firmware} de detecção e ao enlace \textit{LoRaWAN}. Como a saída do gerador excede a faixa fisiológica, uma etapa de calibração ajustou a amplitude, por atenuação, ao nível de aproximadamente 1~mV esperado na entrada do dispositivo, verificando-se a ausência de saturação por meio da ferramenta de visualização.
+
+Compôs-se uma base de 180 estímulos, com 30 repetições para cada uma de seis classes — normal, taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial —, cada estímulo com duração de 30~s e classe e frequência cardíaca esperadas conhecidas (gabarito). Os estímulos foram derivados de registros reais de arritmia anotados e complementados por sinais sintéticos, sobretudo para as classes de pausa, escassas nas bases públicas. Para cada ensaio, a classe detectada pelo \textit{firmware} e o evento efetivamente entregue ao aplicativo foram confrontados com o gabarito, permitindo quantificar tanto o \textbf{processamento} (a anomalia foi corretamente identificada?) quanto a \textbf{transmissão} (o evento correto chegou ao aplicativo?). O desempenho foi expresso por meio de uma matriz de confusão e das métricas de sensibilidade, especificidade, valores preditivos positivo e negativo e acurácia por classe, além do erro de estimativa da frequência cardíaca, em conformidade com o protocolo do trabalho que fundamentou o algoritmo de detecção (Seção~\ref{sec:deteccaoBorda}).
+
+A validação da cobertura da rede e os ensaios clínicos com pacientes em atividade física supervisionada, na Clínica Escola Integrada da \acs{UFMS}, constituem etapas previstas para a conclusão do trabalho.
