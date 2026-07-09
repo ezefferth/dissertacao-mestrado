@@ -201,6 +201,15 @@ Como medida de mitigação dessa limitação no nível da aplicação — sem al
 
 A caracterização quantitativa do desempenho de detecção foi obtida pelo método de injeção de sinais de classe conhecida descrito na Seção~\ref{sec:validacaoGerador}. Para cada uma das seis classes — normal, taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial —, reproduziu-se de forma contínua, na saída do gerador, uma forma de onda representativa da classe, da qual o \textit{firmware} processou 30 segmentos consecutivos de 30~s, totalizando 180 ensaios. A classe atribuída a cada segmento resultou do colapso da máscara de anomalias segundo a prioridade clínica adotada no sistema (Seção~\ref{sec:resPipeline}), na qual a arritmia sinusal ocupa a menor precedência. Nenhum segmento retornou erro de processamento, indicando integridade da aquisição ao longo de todos os ensaios.
 
+A Figura~\ref{fig:casos6classes} ilustra, para cada uma das seis classes, um trecho representativo do sinal de \acs{ECG} tal como capturado pelo próprio dispositivo durante a injeção do estímulo correspondente, evidenciando as características morfológicas e de ritmo que fundamentam a classificação: a regularidade do traçado normal, o encurtamento e o alargamento dos intervalos na taquicardia e na bradicardia, a variabilidade batimento a batimento da arritmia sinusal, os batimentos ausentes do bloqueio sinoatrial e a longa pausa da parada sinoatrial.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\linewidth]{assets/casos_6classes.pdf}
+\caption{Exemplos de \acs{ECG} das seis classes, capturados pelo dispositivo (derivação DII) sob injeção do gerador NI myDAQ. Cada bloco exibe um trecho representativo da respectiva classe; nos painéis de bloqueio e parada, a janela é centrada na pausa característica.}
+\label{fig:casos6classes}
+\end{figure}
+
 A Tabela~\ref{tab:matrizConfusao} apresenta a matriz de confusão entre a classe esperada e a detectada. A Tabela~\ref{tab:metricasClasse} resume, por classe, a sensibilidade, a especificidade, os valores preditivos positivo (\acs{VPP}) e negativo (\acs{VPN}) e a acurácia.
 
 \begin{table}[htb]
