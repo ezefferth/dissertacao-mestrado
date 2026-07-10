@@ -195,7 +195,11 @@ A saída de depuração pela interface serial foi desacoplada da aquisição, de
 \subsection{Detecção de Eventos na Borda}
 \label{sec:deteccaoBorda}
 
-O núcleo do processamento embarcado consistiu em um algoritmo de detecção de complexos QRS e de classificação de arritmias, aplicado à derivação II de cada segmento de 30~s. O algoritmo, baseado na análise da derivada do sinal, seguiu as etapas:
+O núcleo do processamento embarcado consistiu em um algoritmo de detecção de complexos QRS e de classificação de arritmias, aplicado à derivação II de cada segmento de 30~s. \textbf{Esse algoritmo não é uma contribuição deste trabalho}: trata-se do \textit{firmware} de detecção desenvolvido por \citeay{moraesFirmwareECG}, descrito na Seção~\ref{sec:deteccaoEmbarcada}, cujo código-fonte foi cedido pelos autores e aqui reutilizado. A opção por reaproveitá-lo, em vez de reimplementar um detector, decorre de ele já haver sido validado sobre a base MIT-BIH e sobre sinais simulados, alcançando 99,92\% de acerto na detecção dos picos R e 99,67\% na identificação das anomalias, e de o escopo desta dissertação recair sobre a aquisição, o processamento na borda e a \textbf{transmissão} do \acs{ECG} em rede \textit{LoRaWAN} --- não sobre o projeto de um novo algoritmo de detecção.
+
+A adaptação realizada limitou-se ao necessário para a execução na plataforma adotada: ajuste da taxa de amostragem (de 500 para 640~SPS, com a consequente reescrita dos limiares expressos em número de amostras para unidades de tempo), correção de acessos indevidos a vetores e de uma variável não inicializada, e integração ao \textit{buffer} de aquisição e ao \textit{payload} de transmissão. As regras de decisão, os limiares clínicos e a estrutura do método foram preservados, de modo a manter a comparabilidade com os resultados originais.
+
+O algoritmo, baseado na análise da derivada do sinal --- método da operação de diferenças (DOM, \textit{Difference Operation Method}) ---, seguiu as etapas:
 
 \begin{enumerate}
     \item \textbf{Diferenciação}: cálculo da diferença discreta entre amostras consecutivas, realçando as transições rápidas associadas ao complexo QRS.
@@ -208,7 +212,7 @@ O núcleo do processamento embarcado consistiu em um algoritmo de detecção de 
 O Algoritmo~\ref{alg:rpeak} formaliza essa sequência de detecção dos picos R.
 
 \begin{algorithm}[ht]
-\caption{Detecção de picos R no segmento de ECG}
+\caption{Detecção de picos R no segmento de ECG, conforme \citet{moraesFirmwareECG}}
 \label{alg:rpeak}
 \KwIn{Segmento da derivação II $x[0..N-1]$; frequência de amostragem $f_s$}
 \KwOut{Conjunto de picos R, $\mathcal{R}$}
@@ -240,7 +244,7 @@ $\mathcal{R} \leftarrow \emptyset$\;
 Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm); as demais categorias basearam-se na variabilidade e nas diferenças entre intervalos R-R sucessivos. A taquicardia e a bradicardia podem coexistir com a arritmia sinusal em um mesmo segmento, sendo ambas registradas na máscara de bits; apenas as pausas graves (bloqueio e parada) têm precedência sobre a bradicardia. Dessa forma, a arritmia sinusal, de caráter informativo e baixa especificidade, não mascara os eventos de frequência cardíaca, cuja prioridade final é resolvida na ingestão (Seção~\ref{sec:resPipeline}). Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
 
 \begin{algorithm}[ht]
-\caption{Classificação de arritmias a partir dos intervalos R-R}
+\caption{Classificação de arritmias a partir dos intervalos R-R, conforme \citet{moraesFirmwareECG}}
 \label{alg:classif}
 \KwIn{Picos R $\mathcal{R}$; limiares $RR_{taq}=600$ ms e $RR_{bra}=1000$ ms}
 \KwOut{Categoria(s) de anormalidade do segmento}
