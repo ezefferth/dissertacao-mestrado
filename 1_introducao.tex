@@ -54,4 +54,6 @@ Os objetivos específicos desse trabalho são:
     \item Validar o funcionamento integrado do sistema de ponta a ponta — da aquisição do sinal à visualização no aplicativo móvel —, avaliando a qualidade do sinal, o desempenho da detecção de eventos cardíacos mediante injeção de sinais de classe conhecida e a taxa de transmissão de dados, e preparando a infraestrutura para os ensaios clínicos controlados com pacientes em atividade física supervisionada.
 \end{itemize}
 
+Cabe delimitar o escopo deste trabalho quanto ao algoritmo de detecção de arritmias executado na borda. Esse algoritmo não constitui contribuição original desta dissertação: trata-se do \textit{firmware} de detecção de complexos QRS e de classificação de anomalias desenvolvido por \citeay{moraesFirmwareECG}, cujo código-fonte foi cedido pelos autores e aqui reutilizado, após validação prévia sobre a base MIT-BIH. As contribuições desta dissertação concentram-se na aquisição do sinal, na integração do detector ao sistema embarcado, no armazenamento local e, sobretudo, na transmissão dos eventos em rede LoRaWAN, além da infraestrutura de rede local, do serviço de ingestão e do aplicativo de acompanhamento para os profissionais de saúde.
+
 

@@ -1,4 +1,4 @@
-\chapter{Resultados Preliminares}
+\chapter{Resultados e Discussão}
 \label{chap:resultados}
 
 Neste capítulo são apresentados e discutidos os resultados obtidos ao longo do desenvolvimento do sistema. Os experimentos e implementações concentraram-se na construção do protótipo do dispositivo, no desenvolvimento do \textit{firmware} embarcado, na configuração da infraestrutura de rede \textit{LoRaWAN}, no desenvolvimento do aplicativo móvel, na caracterização da aquisição do sinal pelo \acs{AFE} ADS1293, na validação do fluxo de dados de ponta a ponta — do dispositivo embarcado à nuvem — e na verificação da estratégia de detecção na borda como solução para as restrições de transmissão do protocolo.
@@ -199,23 +199,47 @@ Como medida de mitigação dessa limitação no nível da aplicação — sem al
 \section{Validação Quantitativa com Gerador de Sinais}
 \label{sec:resValidacaoGerador}
 
-A caracterização quantitativa do desempenho de detecção foi obtida pelo método de injeção de sinais de classe conhecida descrito na Seção~\ref{sec:validacaoGerador}. Para cada uma das seis classes — normal, taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial —, reproduziu-se de forma contínua, na saída do gerador, uma forma de onda representativa da classe, da qual o \textit{firmware} processou 30 segmentos consecutivos de 30~s, totalizando 180 ensaios. A classe atribuída a cada segmento resultou do colapso da máscara de anomalias segundo a prioridade clínica adotada no sistema (Seção~\ref{sec:resPipeline}), na qual a arritmia sinusal ocupa a menor precedência. Nenhum segmento retornou erro de processamento, indicando integridade da aquisição ao longo de todos os ensaios.
+A caracterização quantitativa do desempenho de detecção foi obtida pelo método de injeção de sinais de classe conhecida descrito na Seção~\ref{sec:validacaoGerador}. Para cada uma das seis classes — normal, taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial —, reproduziu-se de forma contínua, na saída do gerador, uma forma de onda representativa da classe, da qual o \textit{firmware} processou 30 segmentos consecutivos de 30~s, totalizando 180 ensaios por bateria. A classe atribuída a cada segmento resultou do colapso da máscara de anomalias segundo a prioridade clínica adotada no sistema (Seção~\ref{sec:resPipeline}), na qual a arritmia sinusal ocupa a menor precedência.
 
-A Figura~\ref{fig:casos6classes} ilustra, para cada uma das seis classes, um trecho representativo do sinal de \acs{ECG} tal como capturado pelo próprio dispositivo durante a injeção do estímulo correspondente, evidenciando as características morfológicas e de ritmo que fundamentam a classificação: a regularidade do traçado normal, o encurtamento e o alargamento dos intervalos na taquicardia e na bradicardia, a variabilidade batimento a batimento da arritmia sinusal, os batimentos ausentes do bloqueio sinoatrial e a longa pausa da parada sinoatrial.
+Reitera-se que o algoritmo de detecção aqui avaliado não constitui contribuição original desta dissertação: trata-se do \textit{firmware} de detecção de \citet{moraesFirmwareECG}, cujo código-fonte foi cedido pelos autores e reutilizado neste trabalho (Seção~\ref{sec:deteccaoBorda}). O objetivo desta validação é verificar o comportamento desse detector sobre a cadeia de aquisição e de transmissão desenvolvida nesta dissertação, e não propor um novo classificador.
 
-\begin{figure}[htb]
-\centering
-\includegraphics[width=\linewidth]{assets/casos_6classes.pdf}
-\caption{Exemplos de \acs{ECG} das seis classes, capturados pelo dispositivo (derivação DII) sob injeção do gerador NI myDAQ. Cada bloco exibe um trecho representativo da respectiva classe; nos painéis de bloqueio e parada, a janela é centrada na pausa característica.}
-\label{fig:casos6classes}
-\end{figure}
-
-A Tabela~\ref{tab:matrizConfusao} apresenta a matriz de confusão entre a classe esperada e a detectada. A Tabela~\ref{tab:metricasClasse} resume, por classe, a sensibilidade, a especificidade, os valores preditivos positivo (\acs{VPP}) e negativo (\acs{VPN}) e a acurácia.
+A validação não se deu em um único experimento, mas em uma sequência de cinco baterias. Cada bateria expôs uma limitação distinta — ora do banco de estímulos, ora da cadeia de aquisição —, cuja correção orientou a bateria seguinte. Optou-se por relatar essa progressão na íntegra, e não apenas o resultado final, por duas razões: o percurso documenta a metodologia de depuração empregada e, sobretudo, permite distinguir o que era defeito de \textit{firmware} do que é limitação intrínseca do detector ou do próprio banco de estímulos — distinção que um único número de acurácia não revelaria. A Tabela~\ref{tab:progressaoBaterias} e a Figura~\ref{fig:progressaoBaterias} sintetizam as baterias conduzidas.
 
 \begin{table}[htb]
 \centering
-\caption{Matriz de confusão da validação física com gerador de sinais (30 segmentos por classe; linha = classe esperada, coluna = classe detectada).}
-\label{tab:matrizConfusao}
+\caption{Progressão das baterias de validação com gerador de sinais (180 ensaios por bateria).}
+\label{tab:progressaoBaterias}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{c l l c l}
+\hline
+\textbf{Bateria} & \textbf{Morfologia} & \textbf{Ritmo} & \textbf{Acur.\ global (\%)} & \textbf{Limitação exposta} \\
+\hline
+1 & Real (gerador)          & Na fronteira dos limiares    & 67,8        & Especificidade; fronteira do limiar \\
+2 & Real (gerador)          & Taqui.\ e bloqueio ajustados & 78,3        & Perda de amostras na aquisição \\
+3 & Sintética               & Distante dos limiares        & 100,0       & (limite superior otimista) \\
+4 & Real (professor)        & Na fronteira                 & 60,6 / 65,0 & Emenda do laço do gerador \\
+5 & Real (molde de \textit{ensemble}) & Controlado, com imperfeições & 100,0 & --- \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.92\linewidth]{assets/baterias_progressao.pdf}
+\caption{Acurácia global de detecção em cada bateria de validação. As baterias de morfologia sintética ou realista livre de artefatos (3 e 5, em destaque) atingiram 100\,\%, enquanto as baterias de diagnóstico (1, 2, 4 e 4b) expuseram, cada uma, uma limitação distinta do banco de estímulos ou da aquisição, anotada sob a respectiva barra. O contraste entre as baterias, e não o valor isolado de qualquer uma, é o resultado central.}
+\label{fig:progressaoBaterias}
+\end{figure}
+
+\subsection{Fronteira dos limiares e ajuste dos estímulos}
+\label{sec:resBateriaFronteira}
+
+A primeira bateria empregou formas de onda reproduzidas diretamente de registros de \acs{ECG} reais e resultou em acurácia global de 67,8\,\% (Tabela~\ref{tab:matrizInicial}). Três dificuldades concentraram os erros. A primeira foi a baixa especificidade do critério de arritmia sinusal, já caracterizada na Seção~\ref{sec:resArritmia}: dos 30 segmentos normais, apenas 2 foram reconhecidos como normais, com 23 sinalizados como arritmia. A segunda foi a proximidade do limiar de decisão: o estímulo de taquicardia, a cerca de 101~bpm, corresponde a um intervalo R-R médio de aproximadamente 594~ms, a apenas 6~ms do limiar de 600~ms, de modo que pequenas variações da estimativa segmento a segmento cruzavam o limiar e suprimiam a classificação (22 de 30 detectados). A terceira decorreu do critério de bloqueio sinoatrial, que exige a ocorrência de mais de uma pausa de 4 a 6~s no mesmo segmento; com pausas esparsas, apenas 20 de 30 segmentos foram detectados.
+
+\begin{table}[htb]
+\centering
+\caption{Matriz de confusão da primeira bateria (30 segmentos por classe; linha = classe esperada, coluna = classe detectada).}
+\label{tab:matrizInicial}
 \begin{tabular}{l c c c c c c}
 \hline
 \textbf{Esperada / Detectada} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arrit.} & \textbf{Bloq.} & \textbf{Parada} \\
@@ -230,50 +254,108 @@ Parada sinoatr.   & 0  & 0  & 0  & 5  & 0  & 25 \\
 \end{tabular}
 \end{table}
 
+A segunda bateria corrigiu os estímulos de fronteira: a taquicardia passou de 101 para 120~bpm (R-R de 500~ms, distante do limiar) e o bloqueio esparso foi substituído por um traçado com pausas densas. A taquicardia passou a ser detectada em todos os segmentos, elevando a acurácia global para 78,3\,\%. O traçado normal, contudo, permaneceu majoritariamente mal classificado, o que indicava uma causa ainda não identificada, independente do estímulo.
+
+\subsection{A perda de amostras na aquisição}
+\label{sec:resPerdaAmostras}
+
+A persistência dos erros no traçado normal, mesmo após o ajuste dos estímulos, motivou duas hipóteses. A primeira atribuía o problema ao estímulo sobre o limiar: o traçado normal de 60~bpm possui R-R de exatamente 1000~ms, coincidente com o limiar de bradicardia, com margem nula; a adoção de um estímulo de 75~bpm (R-R de 800~ms, 200~ms de margem) eliminou as marcações espúrias de bradicardia, mas não as de arritmia. A segunda hipótese atribuía o problema à emenda do laço do gerador — como o arquivo tinha 30~s e o segmento de processamento também, toda janela conteria uma descontinuidade de recarga do \textit{buffer} do gerador; geraram-se então arquivos de 300~s com soma circular das amostras, mas a hipótese foi refutada, pois 24 dos 30 segmentos continuaram sinalizados.
+
+Foi essa refutação que motivou o despejo do sinal bruto adquirido. No traçado bruto (Figura~\ref{fig:perdaAmostras}), identificaram-se seis intervalos R-R anômalos, periódicos a cada aproximadamente 4,9~s, cada um comprimindo um intervalo de 800 para cerca de 708~ms. A causa foi localizada na aquisição, em um mecanismo distinto da saturação da interface serial descrita na Seção~\ref{sec:resFirmware}: agora com a saída de depuração já decimada, era a própria rotina de diagnóstico que consultava o espaço ocupado no sistema de arquivos local (\textit{LittleFS}) dentro do laço principal, a cada 5~s, bloqueando o processador por cerca de 105~ms; como a rotina de interrupção apenas sinaliza a disponibilidade de uma nova amostra, cerca de 67 amostras colapsavam em uma única leitura. O relatório de diagnóstico registrava 3.133 amostras válidas em vez das 3.200 esperadas — uma perda de 2,08\,\%, mais sutil que a da saturação serial (que reduzia a taxa a cerca de 560~SPS) e, por isso mesmo, mais difícil de identificar.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.95\linewidth]{assets/perda_amostras_rr.pdf}
+\caption{Artefato de perda de amostras no sinal bruto de um segmento normal (75~bpm) indevidamente classificado como arritmia. Acima, a derivação II adquirida, com os picos R detectados; abaixo, a série de intervalos R-R, na qual se observam seis compressões periódicas — de $\approx$800 para $\approx$710~ms, a cada $\approx$4,9~s —, coincidentes com o bloqueio do laço de aquisição pela rotina de diagnóstico. As quedas aproximam a diferença entre intervalos sucessivos do limiar de arritmia (120~ms), produzindo a detecção espúria.}
+\label{fig:perdaAmostras}
+\end{figure}
+
+Esse defeito único explicava todos os sintomas observados: a estimativa de frequência cardíaca cerca de 2\,\% elevada; a aparente taxa de amostragem de 627~SPS, quando a taxa efetiva de 640~SPS (Seção~\ref{sec:resTaxa}) sempre estivera correta; e as marcações espúrias de arritmia, pois a compressão periódica produzia variações R-R de 89 a 114~ms, muito próximas do limiar de 120~ms. Registra-se, a título de transparência metodológica, que se chegou a cogitar "corrigir" a taxa de amostragem para 627~SPS; tal ajuste teria calibrado o \textit{firmware} para compensar o próprio defeito, mascarando-o. A correção adequada consistiu em desacoplar a rotina de diagnóstico do laço de aquisição (Seção~\ref{sec:resFirmware}).
+
+\subsection{Bateria com estímulo controlado}
+\label{sec:resBateriaControlada}
+
+Corrigida a aquisição, repetiu-se o ensaio com o mesmo estímulo, gerador e placa (terceira bateria), obtendo-se a classificação correta dos 180 segmentos. O traçado normal passou de 20\,\% para 100\,\% de reconhecimento. Esse resultado, entretanto, deve ser lido com três ressalvas: os estímulos eram sintéticos, de amplitude constante; os intervalos R-R situavam-se distantes dos limiares de decisão; e os intervalos coincidiam com a grade de amostragem (800~ms correspondem a exatamente 512 amostras a 640~SPS), o que anula o erro de estimativa da frequência cardíaca por construção. Trata-se, portanto, de um limite superior otimista, e não de um desempenho representativo — o que motivou as duas baterias seguintes, com morfologia real.
+
+\subsection{Baterias com morfologia real}
+\label{sec:resBateriaReal}
+
+A quarta bateria empregou o \acs{ECG} real cedido pelo professor colaborador, com ritmos próximos aos limiares, e resultou em 60,6\,\%. A bradicardia caiu a 3,3\,\%, o que confirmou, agora de forma direta, a hipótese da emenda do laço: os arquivos do professor têm exatamente 30~s e não contêm um número inteiro de batimentos, de modo que o intervalo formado na junção fim–início do laço recai em todos os segmentos, deslocando o intervalo R-R médio para 1000~ms — exatamente o limiar de bradicardia. Ajustando-se apenas o comprimento da cauda diastólica de cada arquivo, sem alterar a morfologia dos batimentos, o intervalo da emenda passou a coincidir com o intervalo mediano e a sensibilidade da bradicardia subiu para 100\,\% (bateria 4b, 65,0\,\%). Essa bateria revelou ainda que os estímulos de normal e de arritmia do professor situam-se a cerca de 60~bpm, sobre o limiar de bradicardia — estímulos inadequados para essas classes, limitação do material de teste, e não do detector.
+
+A quinta bateria foi construída para eliminar simultaneamente os artefatos das anteriores: combinou morfologia real — obtida por um molde de \textit{ensemble} do \acs{ECG} do professor — com ritmo controlado e distante dos limiares, acrescido de imperfeições fisiológicas: variação (\textit{jitter}) do intervalo R-R, deriva da linha de base e modulação respiratória da amplitude de $\pm$8\,\%. Esta última é o fator que efetivamente estressa o limiar global de amplitude do detector, ausente das baterias sintéticas. Os arquivos foram gerados com número inteiro de ciclos, de modo que a emenda do laço fecha sem descontinuidade.
+
+\subsection{Resultado da bateria final}
+\label{sec:resBateriaFinal}
+
+A Figura~\ref{fig:casos6classes} ilustra, para cada uma das seis classes, um trecho representativo do sinal de \acs{ECG} tal como capturado pelo próprio dispositivo durante a injeção do estímulo correspondente, evidenciando as características morfológicas e de ritmo que fundamentam a classificação: a regularidade do traçado normal, o encurtamento e o alargamento dos intervalos na taquicardia e na bradicardia, a variabilidade batimento a batimento da arritmia sinusal, os batimentos ausentes do bloqueio sinoatrial e a longa pausa da parada sinoatrial.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\linewidth]{assets/casos_6classes.pdf}
+\caption{Exemplos de \acs{ECG} das seis classes, capturados pelo dispositivo (derivação DII) sob injeção do gerador NI myDAQ. Cada bloco exibe um trecho representativo da respectiva classe; nos painéis de bloqueio e parada, a janela é centrada na pausa característica.}
+\label{fig:casos6classes}
+\end{figure}
+
+Na bateria final, o sistema classificou corretamente os 180 segmentos, com a matriz de confusão diagonal apresentada na Tabela~\ref{tab:matrizFinal} e as métricas por classe na Tabela~\ref{tab:metricasClasse}. Nenhum segmento retornou erro de processamento, indicando integridade da aquisição ao longo de todos os ensaios.
+
 \begin{table}[htb]
 \centering
-\caption{Desempenho de detecção por classe na validação física (valores em \%).}
+\caption{Matriz de confusão da bateria final (bateria 5; 30 segmentos por classe; linha = classe esperada, coluna = classe detectada).}
+\label{tab:matrizFinal}
+\begin{tabular}{l c c c c c c}
+\hline
+\textbf{Esperada / Detectada} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arrit.} & \textbf{Bloq.} & \textbf{Parada} \\
+\hline
+Normal            & 30 & 0  & 0  & 0  & 0  & 0  \\
+Taquicardia       & 0  & 30 & 0  & 0  & 0  & 0  \\
+Bradicardia       & 0  & 0  & 30 & 0  & 0  & 0  \\
+Arritmia sinusal  & 0  & 0  & 0  & 30 & 0  & 0  \\
+Bloqueio sinoatr. & 0  & 0  & 0  & 0  & 30 & 0  \\
+Parada sinoatr.   & 0  & 0  & 0  & 0  & 0  & 30 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htb]
+\centering
+\caption{Desempenho de detecção por classe na bateria final (valores em \%).}
 \label{tab:metricasClasse}
 \begin{tabular}{l c c c c c c}
 \hline
 \textbf{Classe} & \textbf{N} & \textbf{Sens.} & \textbf{Espec.} & \textbf{\acs{VPP}} & \textbf{\acs{VPN}} & \textbf{Acur.} \\
 \hline
-Normal            & 30 & 6,7   & 94,7  & 20,0  & 83,5  & 80,0 \\
-Taquicardia       & 30 & 73,3  & 100,0 & 100,0 & 94,9  & 95,6 \\
-Bradicardia       & 30 & 100,0 & 92,0  & 71,4  & 100,0 & 93,3 \\
-Arritmia sinusal  & 30 & 76,7  & 76,0  & 39,0  & 94,2  & 76,1 \\
-Bloqueio sinoatr. & 30 & 66,7  & 100,0 & 100,0 & 93,8  & 94,4 \\
-Parada sinoatr.   & 30 & 83,3  & 98,7  & 92,6  & 96,7  & 96,1 \\
+Normal            & 30 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 \\
+Taquicardia       & 30 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 \\
+Bradicardia       & 30 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 \\
+Arritmia sinusal  & 30 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 \\
+Bloqueio sinoatr. & 30 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 \\
+Parada sinoatr.   & 30 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 \\
 \hline
 \end{tabular}
 \end{table}
 
-Os eventos clinicamente críticos apresentaram desempenho elevado. A bradicardia foi detectada em todos os 30 segmentos (sensibilidade de 100\,\%), e a parada sinoatrial, em 25 (83,3\,\%), com os cinco casos restantes recaindo em arritmia sinusal por não conterem a pausa característica dentro da janela do segmento. A taquicardia foi corretamente identificada em 22 segmentos (73,3\,\%); os oito casos não detectados concentraram-se na fronteira do critério de decisão, pois o estímulo de aproximadamente 101~bpm corresponde a um intervalo R-R médio de cerca de 594~ms, muito próximo do limiar de 600~ms, de modo que pequenas variações da estimativa segmento a segmento ultrapassam o limiar e suprimem a classificação. O bloqueio sinoatrial foi detectado em 20 segmentos (66,7\,\%); as falhas decorrem do critério do algoritmo, que exige a ocorrência de mais de uma pausa de 4 a 6~s no mesmo segmento — quando apenas uma pausa se enquadra, o segmento é classificado como normal, e quando uma pausa excede 6~s, como parada. A especificidade elevada (94,7\,\% a 100,0\,\%) e o \acs{VPP} de 100\,\% para taquicardia e bloqueio evidenciam a ausência de falsos positivos entre os eventos críticos.
-
-Na leitura estrita de seis classes, o menor desempenho observou-se no traçado normal, com apenas 2 dos 30 segmentos reconhecidos como normais (6,7\,\%): dos demais, 23 foram sinalizados como arritmia sinusal e 5 como bradicardia. Esse comportamento é a mesma baixa especificidade do critério de arritmia sinusal caracterizada na Seção~\ref{sec:resArritmia}, aqui confirmada de forma quantitativa sobre um sinal de referência regular: a variabilidade residual do intervalo R-R, ainda que reduzida, basta para satisfazer o critério de $\pm$120~ms em quase todos os segmentos.
-
-O sistema, contudo, trata a arritmia sinusal como marcador informativo, e não como alerta crítico (Seções~\ref{sec:resPipeline} e~\ref{sec:resArritmia}). Sob essa política, a distinção que importa para a geração de alarmes opõe o traçado normal aos quatro eventos críticos, desconsiderando-se a marcação de arritmia. Nesse enquadramento, os segmentos normais que portam apenas essa marcação são corretamente reconhecidos como normais, e o número de segmentos normais reconhecidos passa de 2 para 25 (de 6,7\,\% para 83,3\,\%), elevando a especificidade do sistema quanto à emissão de alarmes; a discriminação dos quatro eventos críticos não se altera. A própria arritmia sinusal foi sinalizada nos 30 segmentos do estímulo correspondente, o que confirma que o critério captura integralmente a variabilidade do ritmo: alta sensibilidade como marcador informativo, ainda que baixa especificidade — justamente o que motiva seu tratamento como contexto e a exigência de confirmação por persistência antes da promoção a alarme. As cinco marcações remanescentes de bradicardia sobre o traçado normal decorreram de subcontagem pontual de picos R pelo limiar global do detector, mecanismo que também explica a baixa sensibilidade da taquicardia na fronteira do limiar.
-
-A estimativa da frequência cardíaca mostrou-se acurada nas classes de ritmo regular, para as quais há um valor nominal de referência (Tabela~\ref{tab:erroFC}). O erro absoluto médio permaneceu abaixo de 2,5~bpm em todas as três, com desvio-padrão inferior a 3~bpm, confirmando que a cadeia de aquisição e o detector estimam corretamente o ritmo mesmo quando a classificação da anomalia é afetada pela proximidade do limiar. As classes de arritmia e de pausa foram omitidas desta análise por não possuírem uma frequência cardíaca nominal única.
+Diferentemente da terceira bateria, o erro de estimativa da frequência cardíaca não foi nulo (Tabela~\ref{tab:erroFC}): os intervalos R-R, submetidos a \textit{jitter} e à quantização própria de um sinal com imperfeições, não coincidem com a grade de amostragem. O erro absoluto médio permaneceu, ainda assim, abaixo de 0,5~bpm nas três classes de ritmo regular, com erro máximo de 1~bpm — um valor representativo, por não decorrer de um alinhamento artificial. As classes de arritmia e de pausa foram omitidas desta análise por não possuírem uma frequência cardíaca nominal única.
 
 \begin{table}[htb]
 \centering
-\caption{Erro de estimativa da frequência cardíaca nas classes de ritmo regular (bpm).}
+\caption{Erro de estimativa da frequência cardíaca nas classes de ritmo regular (bateria final, em bpm).}
 \label{tab:erroFC}
 \begin{tabular}{l c c c c}
 \hline
 \textbf{Classe} & \textbf{N} & \textbf{Erro médio abs.} & \textbf{Erro máx.} & \textbf{Desvio-padrão} \\
 \hline
-Normal      & 30 & 2,4 & 11,0 & 2,8 \\
-Taquicardia & 30 & 1,4 & 3,0  & 0,9 \\
-Bradicardia & 30 & 0,6 & 4,0  & 0,9 \\
+Normal      & 30 & 0,4 & 1,0 & 0,5 \\
+Taquicardia & 30 & 0,2 & 1,0 & 0,4 \\
+Bradicardia & 30 & 0,5 & 1,0 & 0,5 \\
 \hline
 \end{tabular}
 \end{table}
 
-Em síntese, a validação física confirmou a robustez da detecção dos eventos críticos — bradicardia, taquicardia, bloqueio e parada sinoatrial —, com acurácias por classe entre 93,3\,\% e 96,1\,\% e ausência de falsos positivos entre eles, além de estimativa acurada da frequência cardíaca. A baixa especificidade restringiu-se à arritmia sinusal, limitação já caracterizada e mitigada no nível da aplicação pela confirmação por persistência (Seção~\ref{sec:resArritmia}).
+Cabe uma ressalva de consistência: o reconhecimento integral do traçado normal nesta bateria não contradiz a baixa especificidade do critério de arritmia sinusal caracterizada na Seção~\ref{sec:resArritmia}. O estímulo normal sintético possui variabilidade R-R limitada — \textit{jitter} inferior ao limiar de 120~ms —, ao passo que o \acs{ECG} de um indivíduo real em repouso exibe arritmia sinusal respiratória de amplitude suficiente para satisfazer o critério. A limitação, portanto, manifesta-se sobre sinais fisiológicos humanos, não sobre o estímulo controlado.
+
+Por fim, evita-se deliberadamente a afirmação de que "o sistema acerta 100\,\%". O resultado com peso científico não é o número isolado de qualquer bateria, mas o contraste entre elas: o salto da segunda para a terceira bateria isolou um defeito de \textit{firmware}; a queda na quarta e a recuperação na quinta isolaram um artefato do banco de estímulos; e o desempenho da quinta bateria, obtido sobre a morfologia mais realista e mais exigente, é o que confere credibilidade ao da terceira. Todos os estímulos, contudo, foram gerados artificialmente; a caracterização sobre bases anotadas e em ensaios clínicos com pacientes permanece como etapa subsequente (Seção~\ref{sec:resConsideracoes}).
 
 \section{Considerações sobre os Resultados}
 \label{sec:resConsideracoes}
 
-Os resultados obtidos validaram as decisões estruturais do projeto. Consolidou-se a infraestrutura \textit{LoRaWAN} com servidor de rede local; determinou-se a taxa de amostragem efetiva do conversor; corrigiu-se a aquisição do biopotencial por meio da reconfiguração da referência de modo comum (RLD), obtendo-se um sinal de \acs{ECG} com morfologia adequada e ruído de rede atenuado; verificou-se a integração de ponta a ponta entre o dispositivo, a nuvem e o aplicativo; e confirmou-se que a detecção na borda viabiliza a operação do sistema sobre \textit{LoRaWAN}. A validação física com gerador de sinais caracterizou quantitativamente o desempenho de detecção (Seção~\ref{sec:resValidacaoGerador}), evidenciando a robustez na identificação dos eventos críticos e a acurácia da estimativa da frequência cardíaca, além de confirmar a baixa especificidade do critério de arritmia sinusal para indivíduos saudáveis, o que motivou seu tratamento como informação de contexto. Como etapas subsequentes, restam a caracterização do desempenho sobre bases anotadas e em ensaios clínicos controlados com pacientes, na Clínica Escola Integrada da \acs{UFMS}, além dos testes de cobertura da rede e de autonomia energética do dispositivo.
+Os resultados obtidos validaram as decisões estruturais do projeto. Consolidou-se a infraestrutura \textit{LoRaWAN} com servidor de rede local; determinou-se a taxa de amostragem efetiva do conversor; corrigiu-se a aquisição do biopotencial por meio da reconfiguração da referência de modo comum (RLD), obtendo-se um sinal de \acs{ECG} com morfologia adequada e ruído de rede atenuado; verificou-se a integração de ponta a ponta entre o dispositivo, a nuvem e o aplicativo; e confirmou-se que a detecção na borda viabiliza a operação do sistema sobre \textit{LoRaWAN}. A validação física com gerador de sinais, conduzida em uma sequência de baterias (Seção~\ref{sec:resValidacaoGerador}), caracterizou quantitativamente o desempenho de detecção e, ao contrastar estímulos progressivamente mais realistas, permitiu separar defeitos de \textit{firmware} — como a perda periódica de amostras na aquisição — de limitações intrínsecas do detector e do banco de estímulos. Sobre a bateria final, de morfologia realista e ritmo controlado, o sistema identificou corretamente as seis classes, com estimativa acurada da frequência cardíaca; a baixa especificidade do critério de arritmia sinusal, restrita a sinais fisiológicos humanos com arritmia respiratória, foi caracterizada e mitigada no nível da aplicação pela confirmação por persistência. Como etapas subsequentes, restam a caracterização do desempenho sobre bases anotadas e em ensaios clínicos controlados com pacientes, na Clínica Escola Integrada da \acs{UFMS}, além dos testes de cobertura da rede e de autonomia energética do dispositivo.
