@@ -1,0 +1,539 @@
+================================================================================
+SISTEMA EMBARCADO DE AQUISICAO, PROCESSAMENTO E TRANSMISSAO DE ECG EM LoRaWAN
+Resumo do trabalho realizado - status para reuniao de orientacao
+Data: 22/07/2026
+Mestrando: Ezefferth
+Repositorio do firmware: github.com/ezefferth/rhythmiq-node
+================================================================================
+
+
+1. ESCOPO E ATRIBUICAO
+--------------------------------------------------------------------------------
+
+O escopo desta dissertacao e a cadeia de AQUISICAO (ADS1293) + PROCESSAMENTO NA
+BORDA + TRANSMISSAO LoRaWAN + ARMAZENAMENTO E VISUALIZACAO. O algoritmo de
+deteccao de picos R e de classificacao das 5 anomalias NAO e contribuicao deste
+trabalho: e o firmware de Claudinei Pereira de Moraes, Fabio Iaione e Luiz
+Spalding (SEMISH 2025, SBC), cujo codigo-fonte foi cedido pelos autores. Isso
+esta declarado explicitamente no resumo, na introducao, na metodologia (secao
+sec:deteccaoBorda) e no capitulo de resultados, com citacao formal.
+
+A adaptacao efetivamente realizada sobre o codigo cedido foi delimitada:
+  - migracao de 500 para 640 SPS, com reescrita dos limiares de amostras para ms
+  - correcao de acessos indevidos a vetores
+  - correcao de variavel nao inicializada (xdfmn) que gerava nao-determinismo
+  - integracao ao buffer de aquisicao e ao payload LoRaWAN
+
+PENDENCIA PARA O PROFESSOR: a entrada bibliografica do artigo (moraesFirmwareECG)
+ainda esta com "Dados de publicacao a confirmar". Preciso das paginas e do
+DOI/URL definitivos.
+
+
+2. ARQUITETURA IMPLEMENTADA
+--------------------------------------------------------------------------------
+
+  ADS1293 (SPI, 3 derivacoes, 640 SPS)
+    -> XIAO ESP32-S3
+         - filtros IIR (passa-alta 0,5 Hz / passa-baixa 40 Hz)
+         - buffer de 30 s (19.200 amostras, Derivacao II, em PSRAM)
+         - deteccao na borda ao fechar cada segmento
+         - armazenamento local em LittleFS
+             * resumo de 16 bytes para TODOS os segmentos
+             * ECG bruto (int16) apenas para segmentos com deteccao
+    -> LoRaWAN (RadioLib, OTAA, AU915) - payload de 10 bytes por segmento
+    -> Gateway / ChirpStack (decoder JS proprio, versionado)
+    -> MQTT -> ingestor -> Firestore
+    -> aplicativo movel (Expo / React Native) com alarme por persistencia X-de-N
+
+Observacao sobre o payload: NAO se transmite forma de onda pelo LoRaWAN. Vao
+apenas 10 bytes por segmento - flags de deteccao (bitmask), FC, RR medio, desvio
+padrao do RR, numero de picos e o identificador sequencial do segmento. A forma
+de onda fica no LittleFS e e recuperada por comando serial quando necessario.
+
+Configuracao do front-end: driven-leg de 3 eletrodos, com deteccao de modo comum
+em RA+LL (CMDET_EN = 0x05) e dreno do RLD pelo LA (SELRLD = 010), dispensando o
+quarto cabo de perna direita. Validado na bancada.
+
+
+3. METODOLOGIA DE VALIDACAO
+--------------------------------------------------------------------------------
+
+Bancada: gerador de funcoes arbitrarias NI-ELVISmx (ARB) reproduz um ECG conhecido
+(arquivos .wdt), atenuado por divisor resistivo e injetado na entrada do ADS1293.
+O firmware processa e classifica; o resultado e capturado pela serial e tabulado
+automaticamente.
+
+Protocolo: 30 segmentos de 30 s por classe, 6 classes (normal, taquicardia,
+bradicardia, arritmia sinusal, bloqueio sinoatrial, parada sinoatrial) = 180
+testes por bateria. As tabelas seguem o mesmo formato da Tabela 4 do artigo do
+Claudinei (sensibilidade, especificidade, VPP, VPN, acuracia e erro de FC).
+
+Limiares do detector: taquicardia RR < 600 ms; bradicardia RR > 1000 ms;
+arritmia |dRR| > 120 ms. Prioridade de classificacao: parada > bloqueio >
+taquicardia > bradicardia > arritmia.
+
+Foram executadas SEIS baterias. A sequencia importa mais que qualquer numero
+isolado: e ela que separa o que era defeito nosso do que e limite real do metodo.
+
+
+4. RESULTADOS, BATERIA A BATERIA
+--------------------------------------------------------------------------------
+
+BATERIA 1 - 67,8%
+  Estimulos originais do professor, firmware como estava. Classe "normal" com
+  apenas 6,7% de acerto. O numero era incompativel com um detector ja publicado
+  com 99,67% de acerto, o que indicou desde o inicio que o problema era nosso.
+
+BATERIA 2 - 78,3%
+  Duas correcoes de estimulo: taquicardia de 101 para 120 bpm (o de 101 bpm tinha
+  RR de 594 ms, a 6 ms do limiar de 600) e substituicao do bloqueio esparso pelo
+  denso. Taquicardia foi a 100%. "Normal" ficou em 30%.
+
+  Hipotese A CONFIRMADA - estimulo em cima do limiar: medindo o arquivo .wdt
+  diretamente, o "normal 60 bpm" tem RR de exatamente 1000 ms, que e o proprio
+  limiar de bradicardia. Margem zero. Corrigido para 75 bpm (RR 800 ms, 200 ms de
+  folga); os falsos bradicardicos desapareceram.
+
+  Hipotese B (emenda do laco do ARB) - refutada NESTE experimento: geramos
+  arquivos de 300 s com soma circular, sem emenda, e 24 dos 30 segmentos
+  continuaram marcando arritmia. Foi essa refutacao que forcou o dump do sinal
+  bruto e levou a causa raiz.
+
+CAUSA RAIZ ENCONTRADA
+  No sinal bruto apareceram 6 intervalos RR anomalos, periodicos a cada ~4,9 s,
+  cada um comprimindo um RR de 800 para ~708 ms. Culpado: a chamada
+  LittleFS.usedBytes(), usada na impressao de diagnostico dentro do loop
+  principal a cada 5 s, bloqueia cerca de 105 ms. Como a rotina de interrupcao
+  apenas sinaliza um flag, aproximadamente 67 amostras colapsavam em uma.
+  Perda medida: 2,08% das amostras.
+
+  Isso explicava simultaneamente os tres sintomas: FC 2% acima do esperado; a
+  falsa medida de "frequencia real de 627 SPS" (a taxa de 640 SPS sempre esteve
+  correta); e a arritmia falsa (as variacoes de RR de 89 a 114 ms rocavam o
+  limiar de 120 ms).
+
+  Registro honesto: estivemos a um passo de "corrigir" a constante de frequencia
+  de amostragem para 627 SPS - o que teria calibrado o codigo para compensar o
+  proprio defeito, e o erro so apareceria muito depois.
+
+BATERIA 3 - 180/180 (100%)
+  Mesmo estimulo, mesmo gerador, mesma placa, apos a correcao. A classe "normal"
+  saiu de 20% para 100%.
+  Ressalva registrada: estimulos sinteticos, RR longe das fronteiras e RR
+  alinhados a grade de amostragem (800 ms = 512 amostras a 640 SPS), o que produz
+  erro de FC igual a zero POR CONSTRUCAO. Bom demais para ser o resultado final.
+
+BATERIA 4 - 60,6% (ECG real fornecido pelo professor)
+  normal 83,3 | taqui 100 | bradi 3,3 | arritmia 70 | bloqueio 53,3 | parada 53,3
+
+  Aqui a emenda do laco do ARB voltou - e desta vez era real. Os arquivos tem
+  30 s e nao contem um numero inteiro de batimentos; o ARB reproduz em laco, e o
+  intervalo que cruza fim->inicio e o resto da divisao, nao um RR fisiologico.
+  Como o segmento do firmware tambem tem 30 s, esse RR espurio cai em TODOS os
+  segmentos, e a media lida passa a ser exatamente 30000/N.
+  (Na bateria 2 a emenda estava refutada apenas para os NOSSOS arquivos de 300 s.
+  Eram dois defeitos reais, em experimentos diferentes.)
+
+BATERIA 4b - 65,0% (emenda corrigida)
+  Um script ajusta apenas o comprimento da cauda (diastole apos a onda T) para
+  que o RR da emenda coincida com o RR mediano; nenhuma amostra de batimento foi
+  alterada. Tres previsoes se confirmaram: bradicardia de 3,3% para 100%;
+  taquicardia deixou de vir acompanhada de flag de arritmia; bradicardia folgada
+  idem.
+
+  Achado importante para discutir: a arritmia caiu de 70% para 3,3%. O arquivo
+  "sinus arr" esta a aproximadamente 60 bpm (RR medio entre 999 e 1008 ms), ou
+  seja, SOBRE o limiar de bradicardia, igual ao "normal". A flag de arritmia
+  dispara corretamente, mas a bradicardia vence na ordem de prioridade. Ou seja,
+  os estimulos de "normal" e de "arritmia sinusal" fornecidos estao com FC em
+  cima do limiar e nao discriminam. E limitacao do material de teste, nao do
+  detector.
+
+BATERIA 5 - 180/180 (100%) - VALIDACAO FISICA DEFINITIVA
+  Estimulo construido especificamente para ser livre de artefato de bancada:
+    - morfologia real (molde de ensemble extraido do ECG do professor)
+    - ritmo controlado, longe das fronteiras dos limiares
+    - jitter batimento a batimento e deriva lenta
+    - modulacao respiratoria de amplitude de +-8%, que e justamente o que
+      estressa o limiar global de amplitude do metodo
+    - numero inteiro de ciclos, para que a emenda do laco feche
+
+  Antes de coletar, o estimulo foi validado por simulacao do proprio
+  classificador, deslizando a janela de 30 s por cerca de 600 fases do laco:
+  100% em todas as fases, nas 6 classes. Portanto qualquer resultado inferior a
+  100% na coleta seria atribuivel ao DETECTOR, nao a bancada.
+
+  Coleta no hardware: matriz de confusao diagonal perfeita, 180/180.
+  Sensibilidade, especificidade, VPP e VPN de 100% nas 6 classes.
+  Erro de FC: MAE de 0,2 a 0,5 bpm, erro maximo de 1,0 bpm - ou seja, NAO e zero,
+  porque agora os RR nao caem na grade de amostragem. E o numero honesto.
+
+BATERIA 6 - 81,7% (base MIT-BIH, PhysioNet)
+  Validacao complementar do ALGORITMO contra base padrao-ouro anotada,
+  respondendo "generaliza para populacao real?". 60 segmentos (15 por classe),
+  reamostrados de 360 para 640 SPS.
+  Executada em bancada de software (o mesmo codigo do detector compilado
+  nativamente), e nao no gerador, porque injetar ECG real de 30 s no ARB
+  reintroduziria a emenda do laco - o artefato ja identificado na bateria 4.
+
+  Sensibilidade: normal 73 | taquicardia 73 | bradicardia 87 | arritmia 93.
+  A queda concentra-se na BAIXA ESPECIFICIDADE DA FLAG DE ARRITMIA (VPP de 58%),
+  que dispara sobre segmentos reais de ritmo normal, taquicardico e bradicardico.
+  E a mesma limitacao ja observada na bancada, agora confirmada em base
+  independente.
+  Observacao metodologica: bloqueio e parada sinoatrial nao existem anotados no
+  MIT-BIH (N = 0), portanto essas linhas sao reportadas como N/A e nao como
+  "especificidade de 100%".
+
+BATERIA 7 - EM PREPARACAO (estimulos originais, 500 S/s, disparo unico)
+  Primeira bateria com o protocolo automatizado (secao 8): myDAQ acionado por
+  software em disparo unico, sem Run continuo. Usa os 6 arquivos originais do
+  professor (os mesmos da bateria 4), agora reproduzidos na taxa em que foram
+  criados (500 S/s) e SEM a emenda do laco.
+
+  Importante: estes 6 arquivos NAO tem ruido - sao byte-a-byte identicos aos
+  originais (verificado por hash). O lote com ruido e uma bateria posterior.
+
+  O que a bateria 7 responde: quanto do erro da bateria 4 (60,6%) era artefato
+  de bancada (emenda do laco) e quanto era limitacao real. A simulacao previa da
+  janela medida acerta as 6 classes, com a arritmia saindo PURA - sem a emenda,
+  o RR medio fica em 1000 ms exatos e a bradicardia deixa de mascara-la (era o
+  que derrubava a arritmia para 3,3% na bateria 4b).
+
+  RESSALVA a registrar junto do resultado: cinco das seis classes estao a menos
+  de 20 ms da fronteira do respectivo limiar (normal com margem ZERO, taqui 6 ms,
+  bradi 16 ms, arritmia 10 ms). A 640 SPS uma unica amostra vale 1,5625 ms.
+  Portanto a bateria 7 mede a FRONTEIRA DOS LIMIARES com os estimulos originais,
+  nao a capacidade do detector - seu valor e o CONTRASTE direto com a bateria 4
+  (mesmos arquivos, com emenda). A bateria 5 continua sendo a referencia de
+  desempenho, por usar estimulos afastados das fronteiras.
+
+  Detalhe tecnico tratado: "sinus errest.wdt" (parada sinoatrial) tem os
+  batimentos apenas ate 15,2 s e linha reta depois. O detector so mede o
+  intervalo entre picos detectados; sem um pico apos a pausa, a parada nao seria
+  detectada no disparo unico (em Run continuo o laco fornecia esse pico ao
+  reiniciar). Resolvido deslocando a janela de medicao para que a pausa caia no
+  meio, com batimentos dos dois lados.
+
+
+5. LEITURA DOS RESULTADOS
+--------------------------------------------------------------------------------
+
+O argumento nao e "o sistema acerta 100%". Um numero desses, isolado, e
+justamente o que levanta suspeita em banca - e com razao. O resultado forte e a
+PROGRESSAO entre as baterias, porque cada etapa isola uma causa distinta:
+
+  Baterias 1 -> 3    : defeito de firmware (perda de amostras no loop)
+  Bateria  7         : mesmos arquivos da bateria 4, sem emenda e na taxa certa
+                       - isola o quanto do erro era artefato de bancada
+  Baterias 4 -> 4b   : artefato de bancada (emenda do ARB) e inadequacao do
+                       estimulo (FC sobre o limiar)
+  Bateria 5          : a cadeia fisica de aquisicao, processamento e transmissao
+                       funciona sob morfologia real e modulacao de amplitude
+  Bateria 6          : limite real do metodo em populacao heterogenea
+
+Limitacoes ja escritas no texto:
+  - tempo morto do transmissor LoRa (cerca de 3 s a cada segmento de 30 s), com
+    as amostras perdidas caindo no inicio do segmento seguinte;
+  - pausa dividida na fronteira do segmento (a variavel last_peak_index existe no
+    codigo mas nunca e lida; costurar segmentos resolveria, mas mexe no detector
+    e nao foi feito sem aval);
+  - arritmia sinusal tratada como marcador informativo, e nao como alarme, dada a
+    baixa especificidade;
+  - mitigacao adotada no aplicativo: confirmacao de alarme por persistencia
+    (regra X-de-N), que reduz falso positivo sem alterar o detector.
+
+
+6. AMPLITUDE DO SINAL (11,88 mV) - MEDIDO, FALTA AFERIR NA BANCADA
+--------------------------------------------------------------------------------
+
+O professor mencionou que o sinal fornecido gera em torno de 11,88 mV. Medi os
+arquivos e os registros de bancada para confrontar:
+
+  Arquivo .wdt fornecido (unidade = volts na saida do gerador):
+      pico da onda R ..... 0,9734 V
+      vale ............... -0,2397 V
+      pico a pico ........ 1,2125 V
+      (identico nas 6 classes - o gerador de estimulos normaliza de proposito,
+       para que uma unica calibracao do atenuador valha para os 180 testes)
+
+  Amplitude medida PELO FIRMWARE nos dumps de sinal bruto:
+      pico da onda R ..... 0,45 a 0,52 mV
+      pico a pico ........ 0,59 a 0,69 mV
+
+  Atenuacao efetiva da nossa bancada:
+      0,9734 V / 0,518 mV = aproximadamente 1:1880
+      (o divisor esta documentado como "~1000:1", mas foi ajustado
+       empiricamente na etapa de calibracao)
+
+  De onde saem os 11,88 mV:
+      1,2125 V / 11,88 mV = 102,1  ->  compativel com um divisor de ~100:1
+      (2% de desvio, dentro da tolerancia de resistores comuns)
+
+  INTERPRETACAO PROVAVEL: estamos falando do MESMO sinal, medido em pontos de
+  atenuacao diferentes. A bancada do professor estaria a ~100:1 (11,88 mV) e a
+  nossa a ~1900:1 (0,6 mV) - um sinal cerca de 19 vezes menor.
+
+  Isso e relevante porque 0,6 mV pico a pico esta ABAIXO da faixa fisiologica da
+  derivacao II (tipicamente 1 a 2 mV), enquanto 11,88 mV esta cerca de dez vezes
+  ACIMA. Se a leitura acima estiver correta, as cinco baterias fisicas foram
+  executadas num regime mais dificil que o real, o que reforca o resultado - mas
+  o limiar global de amplitude do metodo estaria sendo exercitado numa faixa bem
+  diferente da usada pelo professor.
+
+  PERGUNTAS PARA CONFIRMAR:
+    (a) os 11,88 mV foram medidos com osciloscopio/multimetro na entrada do
+        amplificador, ou e o valor que o firmware imprime?
+    (b) qual a razao do divisor resistivo utilizado?
+    (c) e valor pico a pico ou amplitude da onda R sobre a linha de base?
+        (no nosso caso a diferenca entre os dois e de 25%)
+
+  TESTE PROPOSTO PARA FECHAR A QUESTAO (independe da resposta acima): injetar uma
+  senoide de amplitude conhecida, medida com osciloscopio no mesmo ponto da
+  entrada do ADS1293, capturar em modo de diagnostico (sinal bruto, sem filtro) e
+  comparar com o valor em mV que o firmware reporta. Isso afere a conversao de
+  contagens do conversor para milivolts, que hoje esta DERIVADA DO DATASHEET
+  (equacao 13, ADC_MAX = 0xC35000, referencia de 2,4 V, ganho de 3,5) e nunca foi
+  aferida contra instrumento.
+
+  Observacao importante: mesmo que a escala em mV precise de correcao, a FORMA DE
+  ONDA e as CLASSIFICACOES nao mudam - o detector trabalha sobre intervalos RR,
+  nao sobre amplitude absoluta. O que mudaria seria apenas o eixo vertical das
+  figuras da dissertacao.
+
+  FERRAMENTA CRIADA: app/node/test/check_amplitude.py mede a amplitude de
+  qualquer ponto da cadeia (.wdt do gerador, .txt do Waveform Editor ou captura
+  do firmware) e, no modo --par, calcula a atenuacao efetiva do divisor e o
+  divisor necessario para atingir os 11,88 mV. Reproduz os numeros acima.
+
+
+7. TAXA DE AMOSTRAGEM DOS ESTIMULOS - CONFIRMADA POR MEDICAO
+--------------------------------------------------------------------------------
+
+Surgiu a duvida de qual taxa usar no gerador. Verifiquei medindo o intervalo RR
+EM AMOSTRAS dentro de cada arquivo e cruzando com a frequencia nominal do nome:
+
+  arquivo                    amostras  picos  RR(amostras)  BPM   taxa implicita
+  normal 60BPM.wdt             15.000     30        500,0    60        500,0 S/s
+  bradi 59BPM.wdt              15.000     30        508,0    59        499,5 S/s
+  taqui 101BPM.wdt             15.000     51        297,0   101        499,9 S/s
+  normal 60BPM_640.wdt         19.200     30        640,0    60        640,0 S/s
+  taqui 101BPM_640.wdt         19.200     51        380,0   101        639,7 S/s
+  bradi 59BPM_640.wdt          19.200     30        650,0    59        639,2 S/s
+
+Prova direta: "normal 60BPM.wdt" tem RR de exatamente 500 amostras; a 60 bpm o
+RR vale 1 s, logo 500 amostras = 1 s = 500 S/s.
+
+CONCLUSAO: os arquivos originais sao de 500 S/s e os sufixados "_640" sao
+reamostragens para 640 S/s. Ambos os conjuntos estao corretos, cada um na sua
+taxa. Reproduzir um original a 640 S/s aceleraria o ritmo em 28% (um bradi de
+59 bpm viraria 75 bpm, classificado como normal, sem nenhum sintoma visivel).
+
+Esclarecimento conceitual (vale registrar): a taxa do gerador NAO precisa ser
+igual aos 640 SPS do ADS1293. O que define a frequencia cardiaca reproduzida e
+apenas "numero de pontos / update rate". O AFE amostra uma tensao analogica e
+converte amostras para milissegundos dividindo pela SUA propria taxa (640), o
+que esta correto qualquer que seja a taxa do arquivo. Igualar as duas taxas
+serve para outro fim: evitar o BEATING - com 500 no gerador e 640 no AFE as
+grades de amostragem deslizam uma sobre a outra e a amplitude da onda R oscila
+(ja se observou cerca de 1 batimento atenuado a cada 5). Como o detector usa
+limiar global de amplitude, picos atenuados sao perdidos, o RR dobra e surge
+arritmia falsa.
+
+FERRAMENTA CRIADA: app/node/test/check_beating.py mede o coeficiente de variacao
+da amplitude da onda R e sinaliza intervalos RR proximos do dobro do mediano
+(assinatura de pico perdido). Referencia ja medida com gerador e AFE na MESMA
+taxa: CV de 0,8%. E o valor de comparacao para decidir se e seguro operar com
+taxas diferentes.
+
+Dois achados sobre os estimulos originais, medidos diretamente nos arquivos:
+  - "sinus arr.wdt" tem RR mediano de 1000 ms, exatamente sobre o limiar de
+    bradicardia. A flag de arritmia dispara, mas a bradicardia vence na ordem de
+    prioridade. O estimulo nao discrimina.
+  - "bradi 59BPM.wdt" tem RR de 1016 ms, a apenas 16 ms do limiar de 1000 ms.
+  - o mesmo vale para "normal 60BPM.wdt": RR de exatamente 1000 ms. Como o teste
+    no codigo e estrito (rr_med > 1000), uma unica amostra de diferenca
+    (1,5625 ms a 640 SPS) separa "normal" de "bradicardia". Margem zero por
+    construcao - nenhum ajuste de gerador corrige isso.
+
+SUGESTAO AO ORIENTADOR: no proximo lote, gerar o "normal" e a "arritmia sinusal"
+com frequencia entre 70 e 80 bpm, afastando-os da fronteira dos limiares. Sao os
+dois estimulos do conjunto que hoje nao discriminam.
+
+
+8. AUTOMACAO DA BANCADA - COLETA POR DISPARO UNICO
+--------------------------------------------------------------------------------
+
+Conforme discutido, a coleta deixa de ser continua e passa a ser disparada uma
+vez por repeticao, com o computador orquestrando gerador e no.
+
+Implementado (app/node/test/bancada_auto.py): a forma de onda e escrita
+diretamente na saida analogica AO0 do myDAQ via NI-DAQmx, em DISPARO UNICO
+(finite samples), dispensando o ARB do ELVISmx em Run continuo. O firmware
+recebeu um comando serial 'S' que arma UMA coleta, alinhando o segmento de 30 s
+ao disparo do gerador.
+
+Sequencia de cada repeticao:
+  dispara a forma de onda -> aguarda o pre-roll -> envia 'S' pela serial
+  -> aguarda a linha de resultado -> grava no CSV -> proxima repeticao
+
+Tres ganhos concretos:
+
+  (a) ACABA A EMENDA DO LACO. Nao ha laco: cada disparo toca o estimulo uma unica
+      vez. O pre-roll e a CAUDA do proprio arquivo, de modo que o segmento medido
+      coincide com o estimulo do primeiro ao ultimo ponto e todos os intervalos RR
+      dentro dele sao fisiologicos. A descontinuidade cauda-inicio cai no instante
+      do armamento, com o pico anterior fora do buffer, e portanto nunca chega a
+      ser medida. Era o artefato que dominava as falhas da bateria 4 e que ate
+      agora exigia correcao por script.
+
+  (b) ALINHAMENTO DETERMINISTICO. Antes o buffer do firmware rodava livre e a
+      janela de 30 s caia onde calhasse em relacao ao estimulo. Agora comeca
+      exatamente no ponto pedido.
+
+  (c) SEM INTERVENCAO. 180 coletas em cerca de 1 h 50 min, reprodutivel.
+
+Duas conexoes, controladas pelo mesmo script:
+  - o myDAQ NAO e uma porta serial: e um dispositivo NI-DAQmx, e a forma de onda
+    e escrita diretamente no seu canal analogico de saida (myDAQ1/ao0) pela
+    biblioteca nidaqmx (a mesma camada que o ELVISmx usa por baixo);
+  - o XIAO e uma porta COM comum (USB), por onde o script envia o comando de
+    armar e le a linha de resultado de cada segmento.
+O script abre as duas ao mesmo tempo: dispara a onda no myDAQ e, em paralelo,
+comanda e le o no pela COM. O comando "--check" lista os dois dispositivos
+visiveis antes de qualquer coleta.
+
+Cuidado tecnico tratado: o filtro passa-alta de 0,5 Hz tem transitorio. Se cada
+disparo comecasse do repouso, os primeiros segundos viriam com deriva e o
+detector veria uma linha de base subindo em vez de um ECG. Por isso o firmware
+mantem os filtros rodando enquanto esta desarmado, e o disparo inclui 5 s de
+pre-roll antes do armamento (cerca de 15 constantes de tempo do filtro).
+
+Alteracoes de apoio no firmware, no mesmo modo de bancada:
+  - deixa de imprimir as amostras na serial; saem apenas as linhas de resultado.
+    Sem trafego de amostras a serial nao satura e o laco nunca bloqueia (era uma
+    das duas causas de perda de amostra ja identificadas);
+  - passa a imprimir o PAYLOAD de 10 bytes em hexadecimal a cada segmento. E
+    exatamente o objeto que chegaria ao banco, gerado pela mesma funcao que
+    alimenta o radio - permite validar a codificacao e arquivar o resultado das
+    30 coletas sem depender do ChirpStack estar no ar.
+
+RESSALVA METODOLOGICA: as baterias 1 a 5 foram coletadas com o gerador em Run
+continuo e com o radio ativo. Os proximos resultados nao serao diretamente
+comparaveis, e isso sera registrado na metodologia como evolucao do protocolo -
+elimina-se uma variavel de confusao conhecida. A bateria 5 permanece como
+referencia do metodo anterior.
+
+
+9. PROPOSTA DE ALTERACAO DISCUTIDA - TRANSMISSAO POR EVENTO
+--------------------------------------------------------------------------------
+
+Situacao atual: o no transmite um resumo de 10 bytes a CADA segmento de 30 s,
+inclusive quando o ritmo e normal (cerca de um enlace a cada 33 s,
+ininterruptamente). O armazenamento do sinal bruto ja segue a logica por evento -
+so grava quando ha deteccao; o que ainda nao segue e o radio.
+
+Alteracao proposta: transmitir apenas quando houver deteccao significativa, mais
+um envio periodico esparso de "sinal de vida". Justificativas: ciclo de trabalho
+da faixa AU915, politica de uso justo da rede LoRaWAN, autonomia de bateria, e
+eliminacao do tempo morto de transmissao (3 s por segmento) no regime normal.
+
+Ponto a decidir com o orientador: sem nenhum envio periodico, o servidor nao
+distingue "paciente saudavel" de "no desligado ou fora de cobertura". Qual
+intervalo de sinal de vida e clinicamente aceitavel - 10 minutos, 30 minutos?
+
+Item adicional a avaliar: usar a deteccao de eletrodo desconectado (lead-off) do
+proprio ADS1293 para que o no nem monte o segmento quando nao houver contato,
+em vez de depender apenas do criterio atual de "menos de 3 picos detectados".
+
+Para demonstracao, pretendo acrescentar um comando serial de disparo manual de
+enlace, permitindo testar a cadeia completa (no -> ChirpStack -> ingestor ->
+aplicativo) sem esperar 30 s nem simular arritmia no gerador.
+
+Ja implementado como primeiro passo: um modo de bancada que nao faz join nem
+transmite e nao grava o sinal bruto em memoria flash. Isso remove do experimento
+o tempo morto de 3 a 4 s do transmissor (cujas amostras perdidas caiam no inicio
+do segmento seguinte) e a escrita em flash, isolando o detector. Em operacao o
+comportamento permanece o atual.
+
+
+10. TAREFAS ATE 29/07/2026
+--------------------------------------------------------------------------------
+
+Codigo: nada a implementar. Firmware e scripts estao prontos e no repositorio.
+O trabalho ate quarta e de bancada e execucao.
+
+  1. Recompilar e gravar UMA VEZ o firmware, com o modo de bancada ja ativado
+     (TEST_MODE, comando de disparo, impressao do payload). E a unica compilacao.
+  2. Ajustar o divisor resistivo e AFERIR a amplitude na entrada do amplificador
+     com osciloscopio, comparando com o valor reportado pelo firmware. Alvo de
+     11,88 mV. Fecha a questao da secao 6 e afere a escala em milivolts, hoje
+     apenas derivada do datasheet.
+  3. Rodar a bateria 7 com o myDAQ em disparo unico (secao 8), primeiro um ensaio
+     curto de 2 repeticoes e, confirmado, as 180 coletas. Comparar com a bateria
+     4 para quantificar o efeito da emenda do laco.
+  4. (posterior) Receber do orientador os arquivos CSV com ruido, gerar os
+     estimulos e rodar a bateria correspondente.
+
+Como o programa executa a coleta, na pratica:
+  - o gerador myDAQ e o no XIAO ficam ambos ligados ao computador. O myDAQ NAO e
+    uma porta serial: e um dispositivo de aquisicao, comandado pela biblioteca
+    NI-DAQmx. O XIAO e uma porta COM comum (USB).
+  - o mesmo programa Python abre as duas conexoes. Para cada repeticao ele
+    escreve a forma de onda na saida analogica do myDAQ (disparo unico), aguarda
+    o pre-roll, envia o comando de armar pela COM do XIAO e le a linha de
+    resultado que o firmware devolve. Repete ate completar as 30 por classe.
+  - antes de qualquer coleta, um modo de verificacao lista os dois dispositivos
+    visiveis (o gerador e a porta do no), para confirmar que ambos foram
+    reconhecidos. O ELVISmx precisa estar fechado, senao ele reserva o gerador e
+    o programa nao consegue usa-lo.
+  - o resultado sai em planilha no mesmo formato das baterias anteriores, com uma
+    coluna extra contendo o pacote de 10 bytes que iria ao banco - o que permite
+    validar tambem a codificacao, sem depender do servidor no ar.
+
+  Sobre os arquivos com ruido, tres informacoes sao necessarias junto com o CSV:
+    (a) a taxa de amostragem em que foram criados (ver secao 7 - reproduzir na
+        taxa errada altera a frequencia cardiaca sem nenhum sintoma visivel);
+    (b) se estao em escala fisica (milivolts) ou normalizados;
+    (c) o tipo de ruido - rede de 60 Hz, atividade muscular, deriva da linha de
+        base ou artefato de eletrodo. Cada um ataca uma parte diferente da
+        cadeia: o filtro passa-baixa de 40 Hz atenua o de 60 Hz, o passa-alta de
+        0,5 Hz trata a deriva, e o ruido muscular e o unico que de fato ameaca o
+        limiar global de amplitude do detector.
+
+  Observacao tecnica: o conversor de estimulos normaliza a amplitude por
+  percentil para que as seis classes saiam com o mesmo pico. Com sinal ruidoso
+  esse criterio precisa mudar, sob pena de o percentil capturar o ruido em vez da
+  onda R e comprimir o ECG, reduzindo silenciosamente a relacao sinal-ruido do
+  proprio teste. Preferencialmente os arquivos deveriam vir ja na taxa de 640 S/s
+  e em escala fisica, o que elimina de uma vez o risco de taxa e o de atenuacao
+  do ruido pela reamostragem.
+
+
+11. SITUACAO DA DISSERTACAO
+--------------------------------------------------------------------------------
+
+Texto: capitulos 1 a 5 escritos e revisados quanto a coerencia; compila sem
+referencias ou citacoes indefinidas; 85 paginas. O capitulo de resultados traz a
+progressao das seis baterias e relata explicitamente as dificuldades e os erros
+cometidos no percurso, por decisao deliberada - o percurso e o que sustenta a
+credibilidade do numero final.
+
+A fazer:
+  1. Escrever a secao da bateria 6 (MIT-BIH) no capitulo de resultados - os
+     numeros e as tabelas ja estao gerados.
+  2. Confirmar os dados de publicacao do artigo do Claudinei para a bibliografia.
+  3. Definir a alteracao de transmissao por evento (secao 9) e, se aprovada,
+     implementar e revalidar.
+  4. Fechar a questao da amplitude (secao 6) com a afericao por osciloscopio.
+  5. Registrar na metodologia a mudanca de protocolo (secao 8): coleta por
+     disparo unico e modo de bancada sem radio.
+  6. Rodar a bateria com os estimulos ruidosos e escrever a secao correspondente.
+
+Validacao clinica em pacientes reais, na Clinica Escola Integrada da UFMS, esta
+registrada no capitulo de conclusoes como etapa subsequente, e e a limitacao
+central a ser apresentada em banca. Um ensaio de coleta no proprio mestrando
+(repouso, esforco e recuperacao) esta roteirizado, mas condicionado a aprovacao
+no Comite de Etica em Pesquisa - a confirmar com o orientador.
+
+================================================================================
