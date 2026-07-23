@@ -1,7 +1,7 @@
 ================================================================================
 SISTEMA EMBARCADO DE AQUISICAO, PROCESSAMENTO E TRANSMISSAO DE ECG EM LoRaWAN
 Resumo do trabalho realizado - status para reuniao de orientacao
-Data: 22/07/2026
+Data: 23/07/2026
 Mestrando: Ezefferth
 Repositorio do firmware: github.com/ezefferth/rhythmiq-node
 ================================================================================
@@ -185,35 +185,130 @@ BATERIA 6 - 81,7% (base MIT-BIH, PhysioNet)
   MIT-BIH (N = 0), portanto essas linhas sao reportadas como N/A e nao como
   "especificidade de 100%".
 
-BATERIA 7 - EM PREPARACAO (estimulos originais, 500 S/s, disparo unico)
+BATERIA 7 - EXECUTADA: 140/180 = 77,8% (originais, 500 S/s, disparo unico)
   Primeira bateria com o protocolo automatizado (secao 8): myDAQ acionado por
   software em disparo unico, sem Run continuo. Usa os 6 arquivos originais do
   professor (os mesmos da bateria 4), agora reproduzidos na taxa em que foram
-  criados (500 S/s) e SEM a emenda do laco.
+  criados (500 S/s) e SEM a emenda do laco. Sao arquivos SEM ruido, byte-a-byte
+  identicos aos originais (verificado por hash) - o lote com ruido vem depois.
 
-  Importante: estes 6 arquivos NAO tem ruido - sao byte-a-byte identicos aos
-  originais (verificado por hash). O lote com ruido e uma bateria posterior.
+  MATRIZ DE CONFUSAO (linha = esperada, coluna = detectada)
 
-  O que a bateria 7 responde: quanto do erro da bateria 4 (60,6%) era artefato
-  de bancada (emenda do laco) e quanto era limitacao real. A simulacao previa da
-  janela medida acerta as 6 classes, com a arritmia saindo PURA - sem a emenda,
-  o RR medio fica em 1000 ms exatos e a bradicardia deixa de mascara-la (era o
-  que derrubava a arritmia para 3,3% na bateria 4b).
+    esp\det      normal  taqui  bradi  arrit  bloq  parada
+    normal           30      0      0      0     0       0
+    taquicardia       0     30      0      0     0       0
+    bradicardia       0      0     30      0     0       0
+    arritmia          0      0     30      0     0       0
+    bloqueio         10      0      0      0    20       0
+    parada            0      0      0      0     0      30
 
-  RESSALVA a registrar junto do resultado: cinco das seis classes estao a menos
-  de 20 ms da fronteira do respectivo limiar (normal com margem ZERO, taqui 6 ms,
-  bradi 16 ms, arritmia 10 ms). A 640 SPS uma unica amostra vale 1,5625 ms.
-  Portanto a bateria 7 mede a FRONTEIRA DOS LIMIARES com os estimulos originais,
-  nao a capacidade do detector - seu valor e o CONTRASTE direto com a bateria 4
-  (mesmos arquivos, com emenda). A bateria 5 continua sendo a referencia de
-  desempenho, por usar estimulos afastados das fronteiras.
+    classe       Sens   Espec    VPP    VPN   Acur
+    normal      100,0    93,3   75,0  100,0   94,4
+    taqui       100,0   100,0  100,0  100,0  100,0
+    bradi       100,0    80,0   50,0  100,0   83,3
+    arritmia      0,0   100,0     --   83,3   83,3
+    bloqueio     66,7   100,0  100,0   93,8   94,4
+    parada      100,0   100,0  100,0  100,0  100,0
+
+  Nenhum erro de processamento nos 180 ensaios e nenhuma coleta perdida.
+  Repetibilidade total: dentro de cada classe os 30 disparos devolveram o mesmo
+  numero de picos e o mesmo R-R.
+
+  QUATRO DAS SEIS CLASSES EM 100%. As 40 falhas concentram-se em dois arquivos e
+  ambas foram medidas diretamente no estimulo:
+
+  (a) arritmia 0/30 - "sinus arr.wdt" tem R-R medio de 1004,6 ms, ACIMA do limiar
+      de bradicardia (R-R > 1000 ms). O firmware mediu 1003 ms, erro de 0,16%. O
+      segmento aciona as duas flags e a prioridade clinica entrega bradicardia.
+      A flag de arritmia acendeu em 30 de 30: a sensibilidade da flag e de 100%,
+      o que reprova e a classificacao exclusiva sobre um estimulo que satisfaz
+      dois criterios ao mesmo tempo.
+
+  (b) bloqueio 20/30 - "sinus blk.wdt" tem quatro pausas (3000, 4000, 5002 e
+      3000 ms), mas apenas duas caem na faixa de 4 a 6 s do criterio, que exige
+      no minimo duas. Uma delas mede 4000 ms cravados, sobre a borda. Quando a
+      quantizacao a joga para 3998 ms, sobra uma unica pausa valida e o segmento
+      cai numa zona morta: pausa demais para bradicardia e arritmia, que sao
+      suprimidas na presenca de pausa, e de menos para bloqueio - sai como normal.
+
+  O CONTRASTE E O RESULTADO: os MESMOS seis arquivos deram 60,6% na bateria 4 e
+  77,8% aqui. A diferenca vem de corrigir a emenda do laco, usar a taxa de origem
+  (500 S/s) e adotar o disparo unico - sem alterar uma linha do detector. Era
+  exatamente o que a bateria 7 foi desenhada para isolar.
+
+  A bateria 7 esta EM ABERTO: aguarda dois arquivos regerados (arritmia e
+  bloqueio, pedidos em PEDIDO_PARA_ORIENTADOR.txt) para refazer essas duas
+  classes fora da fronteira dos limiares.
 
   Detalhe tecnico tratado: "sinus errest.wdt" (parada sinoatrial) tem os
   batimentos apenas ate 15,2 s e linha reta depois. O detector so mede o
   intervalo entre picos detectados; sem um pico apos a pausa, a parada nao seria
   detectada no disparo unico (em Run continuo o laco fornecia esse pico ao
   reiniciar). Resolvido deslocando a janela de medicao para que a pausa caia no
-  meio, com batimentos dos dois lados.
+  meio, com batimentos dos dois lados - com isso a classe fechou em 30/30.
+
+BATERIA 8 - EM EXECUCAO (MIT-BIH pela cadeia fisica)
+  Os MESMOS segmentos do MIT-BIH usados na bateria 6, agora reproduzidos pelo
+  gerador e adquiridos pelo dispositivo, no protocolo de disparo unico.
+
+  O ponto e que o estimulo e IDENTICO ao da bateria 6, o que torna a comparacao
+  pareada: a diferenca entre as duas mede exatamente o que a cadeia de aquisicao
+  acrescenta - ruido, quantizacao, resposta dos filtros - sobre ECG real de
+  pacientes, e nao uma mudanca de estimulo. Nenhuma outra bateria isola isso.
+
+    bateria 6 : run_detector nativo  -> mede o ALGORITMO
+    bateria 8 : myDAQ -> divisor -> ADS1293 -> firmware  -> mede o SISTEMA
+
+  Complementa a bateria 7: aquela repete 6 formas de onda sinteticas 30 vezes e
+  mede REPETIBILIDADE; esta usa ECG de pacientes reais e mede o desempenho sob
+  morfologia clinica.
+
+  Formato: 30 repeticoes por classe, como nas baterias 4 a 7, com um segmento
+  representativo de cada uma - escolhido entre os que o bench classifica
+  corretamente, MAXIMIZANDO a distancia ao limiar de decisao, aplicando a licao
+  da bateria 7:
+
+    normal        100_w5_normal       75 bpm   R-R  799,5 ms   margem 199,5 ms
+    taquicardia   202_w51_taqui      130 bpm   R-R  463,3 ms   margem 136,7 ms
+    bradicardia   117_w1_bradi        49 bpm   R-R 1214,2 ms   margem 214,2 ms
+    arritmia      200_w3_arritmia     81 bpm   R-R  743,1 ms   margem 143,1 ms
+    bloqueio      232_t1229_bloqueio  50 bpm   pausas de 4144 e 5617 ms
+
+  BLOQUEIO SINOATRIAL A PARTIR DE DADOS REAIS: a bateria 6 reportou bloqueio e
+  parada como N/A por ausencia no MIT-BIH. Revendo, a ausencia vinha da lista de
+  18 registros que o script de preparacao usa, escolhida para cobrir ritmo. O
+  registro 232, fora dessa lista, tem 14 pausas na faixa de 4 a 6 s (maximo de
+  5872 ms) e ritmo anotado como bradicardia sinusal - o quadro de doenca do no
+  sinusal que produz o bloqueio. Extraiu-se dele uma janela de 30 s com duas
+  pausas inteiras, validada no bench antes de virar estimulo. Com isso a bateria
+  8 cobre CINCO classes com dados reais.
+
+  A parada sinoatrial permanece indisponivel: nos 20 registros varridos, os
+  unicos intervalos acima de 6 s estao no registro 207, dentro de episodios de
+  flutter ventricular, onde os batimentos nao recebem simbolo de batimento - o
+  intervalo e artefato de anotacao, nao pausa sinusal. Usa-lo seria incorreto.
+
+  Preparacao dos estimulos, duas decisoes que constarao da metodologia:
+  - fechamento do laco: subtrai-se de cada segmento uma rampa linear que iguala o
+    ultimo ponto ao primeiro. No disparo unico o pre-roll e a cauda do proprio
+    arquivo, entao a juncao cauda-inicio cai no instante do armamento, no comeco
+    da janela medida; os segmentos do MIT-BIH nao tem numero inteiro de ciclos e
+    apresentavam degrau de ate 63,9% da excursao ali, que viraria pico espurio. A
+    rampa acrescentada tem periodo de 30 s (cerca de 0,03 Hz), removida pelo
+    passa-altas de 0,5 Hz do firmware - depois da filtragem o sinal e o do
+    MIT-BIH, o que preserva o pareamento com a bateria 6;
+  - amplitude normalizada na mesma escala dos arquivos do gerador, de modo que a
+    MESMA calibracao do divisor resistivo valha para as baterias 7 e 8.
+
+  Validacao previa: os estimulos gerados, passados pelo bench, dao 85,0% - com a
+  bateria 6 em 81,7% sobre os arquivos originais. Confirma que a preparacao nao
+  alterou o conteudo clinico.
+
+  Ressalva: 9 dos 60 segmentos do MIT-BIH estao a menos de 30 ms do limiar mais
+  proximo, os piores em taquicardia (598,5 ms, a 1,5 ms do limiar). Esses NAO
+  devem ser removidos - aqui a proximidade da fronteira e caracteristica da
+  populacao real, e nao defeito de fabricacao do arquivo como na bateria 7 - mas
+  precisa constar do texto ao interpretar os erros de taquicardia.
 
 
 5. LEITURA DOS RESULTADOS
@@ -224,13 +319,25 @@ justamente o que levanta suspeita em banca - e com razao. O resultado forte e a
 PROGRESSAO entre as baterias, porque cada etapa isola uma causa distinta:
 
   Baterias 1 -> 3    : defeito de firmware (perda de amostras no loop)
-  Bateria  7         : mesmos arquivos da bateria 4, sem emenda e na taxa certa
-                       - isola o quanto do erro era artefato de bancada
   Baterias 4 -> 4b   : artefato de bancada (emenda do ARB) e inadequacao do
                        estimulo (FC sobre o limiar)
   Bateria 5          : a cadeia fisica de aquisicao, processamento e transmissao
                        funciona sob morfologia real e modulacao de amplitude
   Bateria 6          : limite real do metodo em populacao heterogenea
+  Bateria 7          : mesmos arquivos da bateria 4, sem emenda e na taxa certa
+                       - quantifica quanto do erro era artefato de bancada
+                       (60,6% -> 77,8%, sem tocar no detector)
+  Bateria 8          : ECG real de pacientes pela cadeia fisica, pareada com a
+                       bateria 6 - separa o que e limitacao do ALGORITMO do que
+                       e custo da AQUISICAO
+
+Um ponto que atravessa as baterias 4, 7 e 8 e merece ficar registrado: varios
+erros nao vieram do detector, mas de estimulos posicionados sobre a fronteira do
+limiar de decisao. Com uma amostra valendo 1,5625 ms a 640 SPS, uma margem de
+poucos milissegundos e da ordem da propria quantizacao - o ensaio passa a medir a
+fronteira, e nao o sistema. Por isso os estimulos da bateria 8 foram escolhidos
+maximizando essa margem, e por isso foram pedidos dois arquivos regerados para
+fechar a bateria 7.
 
 Limitacoes ja escritas no texto:
   - tempo morto do transmissor LoRa (cerca de 3 s a cada segmento de 30 s), com
@@ -463,17 +570,24 @@ comportamento permanece o atual.
 Codigo: nada a implementar. Firmware e scripts estao prontos e no repositorio.
 O trabalho ate quarta e de bancada e execucao.
 
-  1. Recompilar e gravar UMA VEZ o firmware, com o modo de bancada ja ativado
-     (TEST_MODE, comando de disparo, impressao do payload). E a unica compilacao.
-  2. Ajustar o divisor resistivo e AFERIR a amplitude na entrada do amplificador
+  JA CONCLUIDO
+  1. Firmware recompilado com o modo de bancada (TEST_MODE, comando de disparo,
+     impressao do payload). Foi a unica compilacao necessaria.
+  2. Bateria 7 executada: 180 coletas, 77,8%, com o diagnostico das 40 falhas
+     descrito na secao 4 e o contraste com a bateria 4 quantificado.
+  3. Bateria 8 preparada e em execucao: MIT-BIH pela cadeia fisica, 5 classes,
+     150 coletas, pareada com a bateria 6.
+
+  EM ABERTO
+  4. Ajustar o divisor resistivo e AFERIR a amplitude na entrada do amplificador
      com osciloscopio, comparando com o valor reportado pelo firmware. Alvo de
      11,88 mV. Fecha a questao da secao 6 e afere a escala em milivolts, hoje
-     apenas derivada do datasheet.
-  3. Rodar a bateria 7 com o myDAQ em disparo unico (secao 8), primeiro um ensaio
-     curto de 2 repeticoes e, confirmado, as 180 coletas. Comparar com a bateria
-     4 para quantificar o efeito da emenda do laco.
-  4. (posterior) Receber do orientador os arquivos CSV com ruido, gerar os
-     estimulos e rodar a bateria correspondente.
+     apenas derivada do datasheet. E a unica pendencia de instrumentacao.
+  5. Receber os dois arquivos regerados (arritmia e bloqueio fora da fronteira
+     dos limiares, pedidos em PEDIDO_PARA_ORIENTADOR.txt) e refazer essas duas
+     classes da bateria 7.
+  6. (posterior) Receber os arquivos CSV com ruido, gerar os estimulos e rodar a
+     bateria correspondente.
 
 Como o programa executa a coleta, na pratica:
   - o gerador myDAQ e o no XIAO ficam ambos ligados ao computador. O myDAQ NAO e

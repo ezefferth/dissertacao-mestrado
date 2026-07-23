@@ -1,0 +1,125 @@
+================================================================================
+PEDIDO AO ORIENTADOR — AMPLITUDE DO ESTIMULO E NOVO CONJUNTO DE FORMAS DE ONDA
+Ezefferth — 23/07/2026
+================================================================================
+
+--------------------------------------------------------------------------------
+1. AMPLITUDE
+--------------------------------------------------------------------------------
+
+Nossa bancada usa um divisor resistivo entre a saida analogica do myDAQ e a
+entrada do AFE, porque os arquivos .wdt saem a 1,21 V pico a pico e o ECG precisa
+chegar em milivolts. Optamos por gerar em volts e atenuar junto a entrada, de
+forma a manter a forma de onda bem acima do ruido proprio do conversor do gerador.
+
+Com o divisor atual o sinal chega em aproximadamente 0,6 mV pico a pico — cerca de
+19 vezes abaixo dos 11,88 mV que o senhor mediu, o que sugere razoes de atenuacao
+bastante diferentes (na ordem de 1880:1 aqui, contra ~100:1 ai).
+
+Isso nao alterou as classificacoes: o detector decide por intervalo R-R e usa
+limiar de pico proporcional a amplitude do proprio segmento, de modo que escalar o
+sinal inteiro nao muda a deteccao. As baterias fecharam normalmente nesse nivel.
+O efeito real e sobre a relacao sinal-ruido — como 0,6 mV esta abaixo da faixa
+fisiologica de 1 a 2 mV da derivacao II, os ensaios rodaram em condicao mais
+desfavoravel que o uso clinico, o que torna os resultados conservadores. Como
+referencia independente, os segmentos do MIT-BIH que usei para validar o algoritmo
+tem de 1,7 a 4,9 mV pico a pico, dentro da faixa fisiologica.
+
+Gostaria de confirmar dois pontos:
+
+  (a) Os 11,88 mV foram medidos com instrumento na entrada do AFE, ou e a leitura
+      do firmware?
+  (b) E pico a pico, ou amplitude da onda R sobre a linha de base?
+
+Pergunto porque nossa conversao para milivolts foi derivada dos parametros do
+datasheet e ainda nao foi aferida com osciloscopio — pretendo fechar isso
+injetando uma senoide de amplitude conhecida no mesmo ponto.
+
+
+--------------------------------------------------------------------------------
+2. ESTIMULOS
+--------------------------------------------------------------------------------
+
+Rodei a bateria com os seis arquivos que o senhor passou e medi os intervalos R-R
+de cada um. Cinco das seis classes ficaram a menos de 20 ms da fronteira do limiar
+de decisao, e em um dos casos a fronteira foi ultrapassada:
+
+  ARQUIVO              R-R MEDIO   max|dR-R|   LIMIAR MAIS PROXIMO   MARGEM
+  -------------------  ----------  ----------  --------------------  ----------
+  normal 60BPM.wdt      1000,1 ms      2 ms    bradi  (R-R > 1000)      0,1 ms
+  taqui 101BPM.wdt       594,0 ms      2 ms    taqui  (R-R <  600)      6,0 ms
+  bradi 59BPM.wdt       1016,1 ms      2 ms    bradi  (R-R > 1000)     16,1 ms
+  sinus arr.wdt         1004,6 ms    130 ms    bradi  (R-R > 1000)     -4,6 ms  (X)
+  sinus blk.wdt         pausa 5002 ms          bloqueio (4000-6000)    adequado
+  sinus errest.wdt      pausa apos 15,2 s      parada (> 6000)         ver abaixo
+
+Detalhando os tres primeiros casos:
+
+  - sinus arr.wdt tem R-R medio de 1004,6 ms, acima do limiar de bradicardia
+    (R-R > 1000 ms). O firmware mediu 1003 ms, com erro de 0,16%. Resultado: o
+    segmento acende as duas flags — arritmia e bradicardia — e, pela regra de
+    prioridade clinica, e classificado como bradicardia. A arritmia foi detectada
+    em 30 de 30 segmentos, mas nao prevalece na classificacao.
+
+  - normal 60BPM.wdt tem R-R medio de 1000,1 ms, ou seja, exatamente sobre o mesmo
+    limiar. Passou por 1 ms.
+
+  - taqui 101BPM.wdt tem R-R de 594 ms, a 6 ms do limiar de taquicardia (< 600 ms).
+
+Como a taxa de amostragem efetiva do conversor e de 640 amostras por segundo, uma
+amostra vale 1,56 ms — margens de 1 a 6 ms equivalem a poucas amostras, dentro da
+propria quantizacao. Nessa condicao o ensaio mede a fronteira do limiar, nao a
+capacidade do detector.
+
+Se for possivel, gostaria de solicitar um novo conjunto com o ritmo deslocado para
+longe dos limiares:
+
+  CLASSE             SUGESTAO                              MOTIVO
+  -----------------  ------------------------------------  ----------------------
+  normal             75 bpm (R-R 800 ms), |dR-R| < 50 ms   200 ms de folga do
+                                                           limiar de bradicardia
+  arritmia sinusal   75 bpm de media (R-R 800 ms),         isola a variabilidade
+                     com |dR-R| de ~200 ms                 sem tocar no criterio
+                                                           de bradicardia
+  taquicardia        115 bpm (R-R 522 ms)                  78 ms de folga
+  bradicardia        50 bpm (R-R 1200 ms)                  200 ms de folga
+
+Para o sinus blk.wdt (bloqueio sinoatrial): das quatro pausas presentes no arquivo
+(3000, 4000, 5002 e 3000 ms), apenas duas caem na faixa de 4 a 6 s exigida pelo
+criterio de bloqueio — as de 3 s ficam de fora. O algoritmo exige no minimo duas
+pausas nessa faixa, ou seja, o arquivo esta exatamente no minimo. Alem disso, uma
+delas mede 4000 ms cravados, sobre a borda do criterio. Com isso, 10 dos 30
+segmentos ficaram com uma unica pausa valida e nao foram classificados. Seria
+possivel gerar uma versao com tres a quatro pausas de 4,5 a 5,5 s, evitando os
+valores de borda? Isso deve levar a classe de 66,7% para perto de 100%.
+
+Para o sinus errest.wdt (parada sinoatrial): os batimentos vao ate 15,2 s e o
+restante do arquivo e linha de base. Como o algoritmo mede a pausa pelo intervalo
+entre picos detectados, sem um batimento apos a pausa o intervalo nao chega a
+existir. Contornei deslocando a janela de analise, mas o ideal seria uma versao com
+a pausa no meio do arquivo, com batimentos antes e depois. O sinus blk.wdt esta
+adequado (pausa de 5,0 s, dentro da faixa de 4 a 6 s).
+
+Os demais parametros dos arquivos estao bons e peco que sejam mantidos: 30 s de
+duracao, 500 amostras por segundo, e numero inteiro de ciclos cardiacos — isso
+evita a descontinuidade de intervalo R-R na emenda quando o arquivo e reproduzido
+em laco, artefato que me custou uma bateria inteira de resultados.
+
+Quando o senhor enviar os arquivos com ruido, essas mesmas observacoes valem: se o
+ritmo estiver sobre o limiar, o efeito do ruido fica mascarado pela fronteira.
+
+================================================================================
+ANEXO — LIMIARES DE DECISAO DO DETECTOR (para referencia)
+================================================================================
+
+  taquicardia          R-R medio  <  600 ms
+  bradicardia          R-R medio  > 1000 ms
+  arritmia sinusal     |dR-R|     >  120 ms
+  bloqueio sinoatrial  pausa entre 4000 e 6000 ms
+  parada sinoatrial    pausa      > 6000 ms
+
+  Prioridade de classificacao: parada > bloqueio > taqui > bradi > arritmia.
+  A arritmia vem por ultimo porque acompanha quase todo evento (baixa
+  especificidade); so classifica quando e a unica deteccao do segmento.
+
+  Taxa de amostragem efetiva do conversor: 640 amostras/s (1 amostra = 1,5625 ms).
