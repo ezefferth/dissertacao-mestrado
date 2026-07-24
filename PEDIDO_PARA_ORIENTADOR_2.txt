@@ -1,0 +1,82 @@
+================================================================================
+RETORNO SOBRE O SEGUNDO CONJUNTO DE FORMAS DE ONDA
+Ezefferth — 24/07/2026
+================================================================================
+
+Professor, recebi os seis arquivos novos e ja os coloquei na bancada. Quatro das
+seis classes melhoraram exatamente como o esperado; duas precisam de um ajuste, e
+e sobre elas que escrevo.
+
+--------------------------------------------------------------------------------
+1. O QUE MELHOROU
+--------------------------------------------------------------------------------
+
+O ritmo base saiu de 1000 ms para 952 ms, o que afastou as classes de ritmo do
+limiar de bradicardia. Comparando com o lote anterior:
+
+  CLASSE      R-R ANTES     R-R AGORA    LIMIAR MAIS PROXIMO     MARGEM
+  ----------  ------------  -----------  ----------------------  ---------------
+  normal       1000,1 ms      952 ms     bradi (R-R > 1000)      0,1 -> 48 ms
+  taquicardia   594,0 ms      572 ms     taqui (R-R <  600)      6,0 -> 28 ms
+  bradicardia  1016,1 ms     1052 ms     bradi (R-R > 1000)      16,1 -> 52 ms
+  arritmia     1004,6 ms      952 ms     bradi (R-R > 1000)      -4,6 -> 48 ms
+
+O caso da arritmia sinusal era o mais importante e esta resolvido: no lote
+anterior o segmento acendia as duas flags e a prioridade clinica o classificava
+como bradicardia (0 de 30 acertos). Com o R-R medio abaixo de 1000 ms, o ensaio
+na bancada ja saiu com a flag de arritmia pura. Estou rodando as 30 repeticoes de
+cada uma dessas quatro classes.
+
+--------------------------------------------------------------------------------
+2. BLOQUEIO E PARADA SINOATRIAL — PRECISO PEDIR UM AJUSTE
+--------------------------------------------------------------------------------
+
+Nos arquivos novos as pausas foram construidas como multiplos do intervalo R-R:
+
+  sinus_blk.csv     pausas de 1904 ms (2 x 952) e 2856 ms (3 x 952)
+  sinus_arres.csv   pausa de 3332 ms
+
+Do ponto de vista fisiologico isso e o correto — o bloqueio sinoatrial se
+apresenta como batimento suprimido, e a pausa e mesmo um multiplo do ciclo. O
+problema e que o algoritmo nao usa esse criterio: ele testa a DURACAO ABSOLUTA da
+pausa, com limiares fixos.
+
+  bloqueio sinoatrial   ao menos DUAS pausas entre 4000 e 6000 ms
+  parada sinoatrial     UMA pausa acima de 6000 ms
+
+Com pausas de 1,9 e 2,9 s nenhuma entra na faixa, e os dois segmentos saem
+classificados como bradicardia (a media dos intervalos sobe acima de 1000 ms).
+Confirmei na bancada: 0 de 2 nas duas classes.
+
+O lote anterior atendia esse criterio (o sinus blk tinha pausas de 3000, 4000,
+5002 e 3000 ms), por isso aquelas classes fecharam em 66,7% e 100%.
+
+Se for possivel, gostaria de pedir apenas esses dois arquivos regerados:
+
+  bloqueio    3 a 4 pausas de 4,5 a 5,5 s, evitando os valores de borda de
+              4000 e 6000 ms cravados, com batimentos normais entre elas
+  parada      1 pausa entre 7 e 10 s, posicionada no MEIO do arquivo, com
+              batimentos antes e depois (o algoritmo mede a pausa pelo intervalo
+              entre dois picos detectados; sem batimento apos a pausa, o
+              intervalo nao chega a existir)
+
+Registro que essa diferenca entre o criterio absoluto do algoritmo e a definicao
+fisiologica por multiplo do R-R vai ser discutida na dissertacao como limitacao
+do metodo — nao e defeito dos arquivos.
+
+--------------------------------------------------------------------------------
+3. NUMERO INTEIRO DE CICLOS
+--------------------------------------------------------------------------------
+
+Os arquivos novos tem numero fracionario de ciclos em 30 s (o normal tem 31,51, o
+de taquicardia 52,45, o de bradicardia 28,52). Quando o estimulo e repetido para
+preencher a janela de analise, a juncao fim->inicio cria um intervalo R-R que nao
+e fisiologico. No primeiro ensaio isso fez um dos dois segmentos normais ser
+classificado como arritmia.
+
+Contornei cortando cada arquivo no ultimo ciclo completo antes de gerar a forma
+de onda — o corte tira menos de 0,6 s e deixa a repeticao exatamente periodica.
+Fica resolvido do meu lado, mas se for simples ajustar no gerador, um numero
+inteiro de ciclos evita o contorno. Vale tambem para o lote com ruido.
+
+================================================================================
