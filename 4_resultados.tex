@@ -382,6 +382,35 @@ Numa segunda etapa (oitava bateria), os mesmos segmentos do MIT-BIH foram reprod
 
 O valor dessa bateria não está no número em si — a seleção de representantes favoráveis o torna deliberadamente otimista e ele não deve ser lido como acurácia do sistema sobre \acs{ECG} real qualquer —, mas na comparação \emph{pareada} com a sexta bateria. Como o conjunto de estímulos é o mesmo, a diferença entre as duas mede exclusivamente o que a aquisição acrescenta: nos segmentos em que o algoritmo decide corretamente sobre o sinal ideal, a cadeia física preserva a decisão integralmente, sem que o divisor, o \acs{AFE}, os filtros ou a quantização custem um único acerto. As duas baterias, em conjunto, separam a limitação do \emph{método} (os 81,7\,\% da sexta) do custo da \emph{aquisição} (nulo, pela oitava) — atribuição que nenhuma das duas, isolada, permitiria.
 
+\subsection{A fronteira dos limiares e a revisão do banco de estímulos}
+\label{sec:resRevisaoEstimulos}
+
+A quarta bateria, que empregou o \acs{ECG} sintético cedido pelo professor colaborador, atingira apenas 60,6\,\% (Seção~\ref{sec:resBateriaReal}), em boa parte por conta da emenda do laço de reprodução, artefato próprio da aquisição em modo contínuo. Adotado o protocolo de disparo único, que reproduz cada arquivo uma única vez e alinha o segmento medido ao início da reprodução, esses mesmos seis arquivos foram reavaliados na taxa em que foram criados (500~amostras por segundo), na sétima bateria. A acurácia subiu a 77,8\,\% (Tabela~\ref{tab:matrizProfessor}), com quatro das seis classes reconhecidas integralmente — o que confirma, por contraste com a quarta bateria, que boa parte de seu erro era artefato de bancada, e não do detector.
+
+\begin{table}[htb]
+\centering
+\caption{Matriz de confusão da sétima bateria (seis arquivos originais do professor colaborador, em disparo único; 30 segmentos por classe).}
+\label{tab:matrizProfessor}
+\begin{tabular}{l c c c c c c}
+\hline
+\textbf{Esperada / Detectada} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arrit.} & \textbf{Bloq.} & \textbf{Parada} \\
+\hline
+Normal            & 30 & 0  & 0  & 0  & 0  & 0  \\
+Taquicardia       & 0  & 30 & 0  & 0  & 0  & 0  \\
+Bradicardia       & 0  & 0  & 30 & 0  & 0  & 0  \\
+Arritmia sinusal  & 0  & 0  & 30 & 0  & 0  & 0  \\
+Bloqueio sinoatr. & 10 & 0  & 0  & 0  & 20 & 0  \\
+Parada sinoatr.   & 0  & 0  & 0  & 0  & 0  & 30 \\
+\hline
+\end{tabular}
+\end{table}
+
+As 40 falhas restantes concentram-se em dois arquivos, e a análise de ambos mostra tratar-se de defeito do estímulo, e não do detector. O arquivo de arritmia sinusal apresenta intervalo R-R médio de 1004,6~ms, acima do limiar de bradicardia (1000~ms); em consequência, todo segmento acende simultaneamente as flags de arritmia e de bradicardia, e a regra de prioridade clínica atribui a classificação à bradicardia. A flag de arritmia, note-se, foi disparada nos 30 segmentos — a detecção da variabilidade ocorreu; o que falha é a classificação exclusiva, porque o ritmo médio do estímulo recai sobre a fronteira do limiar. O arquivo de bloqueio sinoatrial, por sua vez, contém apenas duas pausas na faixa de 4 a 6~s exigida pelo critério, uma delas exatamente sobre a borda de 4~s; a quantização ocasionalmente a desloca para fora da faixa, reduzindo a contagem de pausas ao mínimo e deixando 10 dos 30 segmentos sem classificação.
+
+Esse diagnóstico — de que o desempenho estava limitado pela proximidade dos ritmos aos limiares de decisão, e não pela capacidade do detector (Seção~\ref{sec:resBateriaFronteira}) — motivou a solicitação, ao professor colaborador, de um segundo conjunto de arquivos com os ritmos deslocados para longe das fronteiras. De posse desse segundo lote, conduziu-se a nona bateria. As quatro classes de ritmo — normal, taquicardia, bradicardia e arritmia sinusal — foram reconhecidas nos 120 segmentos, sem exceção. Em particular, a arritmia sinusal, que na sétima bateria não fora reconhecida em nenhum segmento, passou a sê-lo em todos: com o intervalo R-R médio agora abaixo do limiar de bradicardia (952~ms), o critério de arritmia prevalece, e a classe é corretamente identificada. Trata-se da confirmação empírica de uma predição — a de que a falha decorria do posicionamento do estímulo, e não do algoritmo —, análoga em natureza ao pareamento das baterias sexta e oitava.
+
+O bloqueio e a parada sinoatrial do segundo lote, contudo, não puderam ser aproveitados: suas pausas foram construídas como múltiplos do intervalo R-R — representação fisiologicamente correta, mas de duração (1,9 a 3,3~s) inferior à faixa absoluta que o detector exige. Para completar as seis classes, os dois estímulos foram reconstruídos a partir do próprio material do professor: como o \acs{ECG} cedido é exatamente periódico e tem linha de base nula, montou-se cada segmento como uma sequência de ciclos, alternando batimentos reais do arquivo normal com ciclos de silêncio, de modo a inserir pausas dentro da faixa exigida sem sintetizar forma de onda alguma. Reproduzidos pela cadeia física, ambos foram classificados corretamente nos 30 segmentos. Registra-se, por transparência, que esses dois estímulos foram derivados pelos próprios autores, e não recebidos como material independente; sua evidência é, portanto, mais fraca do que a dos arquivos originais, e serve para demonstrar que a cadeia reproduz e classifica a pausa, não que o detector reconheça pausas arbitrárias.
+
 \subsection{Robustez ao ruído}
 \label{sec:resRuido}
 
