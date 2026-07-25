@@ -355,6 +355,78 @@ Cabe uma ressalva de consistência: o reconhecimento integral do traçado normal
 
 Por fim, evita-se deliberadamente a afirmação de que "o sistema acerta 100\,\%". O resultado com peso científico não é o número isolado de qualquer bateria, mas o contraste entre elas: o salto da segunda para a terceira bateria isolou um defeito de \textit{firmware}; a queda na quarta e a recuperação na quinta isolaram um artefato do banco de estímulos; e o desempenho da quinta bateria, obtido sobre a morfologia mais realista e mais exigente, é o que confere credibilidade ao da terceira. Todos os estímulos, contudo, foram gerados artificialmente; a caracterização sobre bases anotadas e em ensaios clínicos com pacientes permanece como etapa subsequente (Seção~\ref{sec:resConsideracoes}).
 
+\subsection{Robustez ao ruído}
+\label{sec:resRuido}
+
+As baterias anteriores empregaram estímulos livres de ruído, adequados para isolar o comportamento do detector frente ao ritmo, mas distantes das condições de aquisição em campo. Para caracterizar a robustez do sistema a interferências, conduziu-se uma bateria específica em que se somou ruído sintético aos estímulos das seis classes, reproduzindo o ensaio de \citeay{moraesFirmwareECG}. Foram consideradas três perturbações — uma senoide de 0,33~Hz, que simula a deriva da linha de base pela respiração; uma senoide de 60~Hz, que simula a interferência da rede elétrica; e um ruído aleatório de banda larga, que simula os artefatos de movimento e de atividade muscular —, cada uma somada em três amplitudes, correspondentes a 10, 20 e 30\,\% da excursão pico-a-vale do sinal limpo. A combinação das seis classes com os três tipos de ruído e as três amplitudes resultou em 54 condições distintas que, a 30 repetições cada, totalizaram 1.620 ensaios. Nenhum ensaio retornou erro de processamento.
+
+A Tabela~\ref{tab:ruidoAcuracia} resume a acurácia de classificação por condição. A acurácia global foi de 93,5\,\% (1.515 dos 1.620 ensaios). A deriva de 0,33~Hz não produziu erro algum em nenhuma amplitude, resultado esperado, uma vez que sua frequência situa-se abaixo do corte do filtro passa-alta de 0,5~Hz do \textit{firmware} e é, portanto, atenuada antes da detecção. O ruído aleatório degradou o desempenho apenas na maior amplitude, e ainda assim de forma parcial (92,2\,\% a 30\,\%): a única classe afetada foi a normal, na qual a perturbação de banda larga ocasionalmente introduz um pico espúrio que eleva a variabilidade R-R acima do limiar de arritmia — o mesmo mecanismo e a mesma condição em que \citeay{moraesFirmwareECG} registrou o único resultado inconsistente do algoritmo original.
+
+\begin{table}[htb]
+\centering
+\caption{Acurácia de classificação por condição de ruído (seis classes, 30 repetições cada; 180 ensaios por célula).}
+\label{tab:ruidoAcuracia}
+\begin{tabular}{l c c c}
+\hline
+\textbf{Perturbação} & \textbf{10\,\%} & \textbf{20\,\%} & \textbf{30\,\%} \\
+\hline
+Deriva (0,33~Hz)  & 100,0\,\% & 100,0\,\% & 100,0\,\% \\
+Rede (60~Hz)      & 100,0\,\% & 100,0\,\% & 50,0\,\%  \\
+Aleatório         & 99,4\,\%  & 100,0\,\% & 92,2\,\%  \\
+\hline
+\end{tabular}
+\end{table}
+
+O único ponto de falha expressivo ocorreu sob a interferência de rede de 60~Hz na amplitude de 30\,\%, em que a acurácia caiu a 50\,\%. A Tabela~\ref{tab:rede30Classe} discrimina esse caso por classe: as classes normal, taquicardia e arritmia sinusal deixaram de ser reconhecidas por completo, ao passo que a bradicardia, o bloqueio e a parada sinoatrial permaneceram em 100\,\%. A falha decorre da perda de picos R: sob a interferência, o detector deixa de registrar parte dos complexos, o que eleva o intervalo R-R médio — o erro absoluto médio de estimativa do intervalo, inferior a 1\,\% em todas as demais condições, atinge 22\,\% nesta — e desloca a classificação para bradicardia ou arritmia. As classes preservadas são justamente aquelas cujo diagnóstico não depende da contagem exata de picos, mas da presença de pausas longas (bloqueio e parada) ou de um ritmo lento já distante dos demais limiares (bradicardia).
+
+\begin{table}[htb]
+\centering
+\caption{Classificação por classe sob interferência de rede de 60~Hz a 30\,\% de amplitude (30 repetições por classe).}
+\label{tab:rede30Classe}
+\begin{tabular}{l c c}
+\hline
+\textbf{Classe} & \textbf{Acertos} & \textbf{Resultado} \\
+\hline
+Normal            & 0/30  & classificada como bradicardia/arritmia \\
+Taquicardia       & 0/30  & classificada como arritmia \\
+Bradicardia       & 30/30 & correta \\
+Arritmia sinusal  & 0/30  & classificada como bradicardia \\
+Bloqueio sinoatr. & 30/30 & correta \\
+Parada sinoatr.   & 30/30 & correta \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Rejeição da interferência de rede elétrica}
+\label{sec:resNotch}
+
+A falha sob 60~Hz motivou uma investigação de sua causa e uma tentativa de correção. Verificou-se, em primeiro lugar, que o efeito não é um artefato da bancada. Poder-se-ia suspeitar de um batimento entre a taxa de geração do estímulo (500 amostras por segundo, na saída do gerador) e a taxa de amostragem do \acs{AFE} (640~SPS), que produziria uma modulação espúria de amplitude. Para descartá-la, regenerou-se o estímulo de rede a 2.500 amostras por segundo, taxa em que a senoide de 60~Hz é reconstruída com folga e o eventual batimento desapareceria. A falha, contudo, não apenas persistiu como se agravou, o que refuta a hipótese de batimento: a reconstrução mais grosseira a 500~SPS, na verdade, atenuava parte da energia de 60~Hz, e sua eliminação piorou o quadro.
+
+A causa é de outra ordem. O filtro passa-baixa de 40~Hz do \textit{firmware} é um filtro de primeira ordem; a 60~Hz — apenas 1,5 vez a frequência de corte — ele atenua somente cerca de 3 a 4~dB, deixando passar energia suficiente para, na amplitude de 30\,\%, corromper a detecção de picos. A isso soma-se a natureza do ensaio: a bancada injeta a interferência de forma \emph{diferencial}, somada ao sinal de \acs{ECG}, ao passo que a interferência de rede em uso real manifesta-se predominantemente em \emph{modo comum}, rejeitada na origem pelo \acs{CMRR} do ADS1293 e pelo eletrodo de perna direita (\textit{Right-Leg Drive}, Seção~\ref{sec:resSinal}). O ensaio submete, portanto, o sistema a uma condição mais severa do que a de operação, na qual a principal defesa contra a rede é contornada.
+
+Avaliou-se, ainda assim, o acréscimo de um filtro rejeita-faixa (\textit{notch}) de 60~Hz à cadeia digital, anterior ao passa-baixa. O filtro foi projetado como uma seção biquadrática de segunda ordem, com atenuação superior a 200~dB na frequência central e resposta essencialmente plana na banda do complexo QRS. Dois fatores de qualidade foram testados. Com um filtro estreito ($Q=8$), a resposta transitória do \textit{notch} estende-se por cerca de 130~ms e, na presença do ruído residual de 60~Hz, injeta em torno de dois picos espúrios por segmento, o que introduziu falhas nas classes normal e bradicardia mesmo na amplitude de 20\,\%, que antes eram classificadas corretamente. Um filtro mais largo ($Q=2$), cuja resposta transitória dura cerca de 33~ms, atenuou esse efeito e recuperou a classe normal sob 20\,\% de ruído, mas não eliminou os picos espúrios na bradicardia.
+
+A Tabela~\ref{tab:notchAB} sintetiza o balanço, nas condições em que ele se manifesta. O \textit{notch} recupera as classes que colapsavam por completo sob 60~Hz a 30\,\% — taquicardia e arritmia sinusal, que voltam a ser reconhecidas —, mas, em contrapartida, passa a comprometer a bradicardia, cujo ritmo lento a situa junto ao limiar de decisão: os dois picos espúrios introduzidos pelo filtro elevam a frequência estimada para além do limiar de bradicardia e acendem, simultaneamente, o critério de arritmia. O número total de condições em falha não diminui; o filtro apenas redistribui quais classes falham. Não se identificou, portanto, um ganho líquido que justificasse sua adoção, e a cadeia de filtragem original foi mantida.
+
+\begin{table}[htb]
+\centering
+\caption{Efeito do filtro \textit{notch} de 60~Hz sobre a classificação, nas condições afetadas (símbolo $\checkmark$ = classificação correta; $\times$ = incorreta).}
+\label{tab:notchAB}
+\begin{tabular}{l c c c}
+\hline
+\textbf{Condição} & \textbf{Sem \textit{notch}} & \textbf{$Q=8$} & \textbf{$Q=2$} \\
+\hline
+Normal, rede 20\,\%     & $\checkmark$ & $\times$      & $\checkmark$ \\
+Bradicardia, rede 20\,\%& $\checkmark$ & $\times$      & $\times$     \\
+Bradicardia, rede 30\,\%& $\checkmark$ & $\times$      & $\times$     \\
+Taquicardia, rede 30\,\%& $\times$     & $\checkmark$  & $\checkmark$ \\
+Arritmia, rede 30\,\%   & $\times$     & $\checkmark$  & $\checkmark$ \\
+\hline
+\end{tabular}
+\end{table}
+
+O resultado tem valor além do balanço imediato: ele evidencia que a rejeição robusta da interferência de rede não é atribuição do filtro digital, mas do estágio analógico de entrada — do \acs{CMRR} do amplificador e da realimentação de modo comum pelo eletrodo de perna direita. A bancada, ao injetar a rede em modo diferencial, mede o pior caso, no qual essa defesa é deliberadamente contornada; sob a interferência de modo comum característica do uso real, a rejeição ocorre na origem, antes da digitalização. O aprimoramento pertinente, discutido no Capítulo~\ref{chap:conclusoes}, situa-se, portanto, no domínio do \textit{hardware} de aquisição, e não no do processamento.
+
 \section{Considerações sobre os Resultados}
 \label{sec:resConsideracoes}
 
