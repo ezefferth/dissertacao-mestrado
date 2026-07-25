@@ -353,7 +353,34 @@ Bradicardia & 30 & 0,5 & 1,0 & 0,5 \\
 
 Cabe uma ressalva de consistência: o reconhecimento integral do traçado normal nesta bateria não contradiz a baixa especificidade do critério de arritmia sinusal caracterizada na Seção~\ref{sec:resArritmia}. O estímulo normal sintético possui variabilidade R-R limitada — \textit{jitter} inferior ao limiar de 120~ms —, ao passo que o \acs{ECG} de um indivíduo real em repouso exibe arritmia sinusal respiratória de amplitude suficiente para satisfazer o critério. A limitação, portanto, manifesta-se sobre sinais fisiológicos humanos, não sobre o estímulo controlado.
 
-Por fim, evita-se deliberadamente a afirmação de que "o sistema acerta 100\,\%". O resultado com peso científico não é o número isolado de qualquer bateria, mas o contraste entre elas: o salto da segunda para a terceira bateria isolou um defeito de \textit{firmware}; a queda na quarta e a recuperação na quinta isolaram um artefato do banco de estímulos; e o desempenho da quinta bateria, obtido sobre a morfologia mais realista e mais exigente, é o que confere credibilidade ao da terceira. Todos os estímulos, contudo, foram gerados artificialmente; a caracterização sobre bases anotadas e em ensaios clínicos com pacientes permanece como etapa subsequente (Seção~\ref{sec:resConsideracoes}).
+Por fim, evita-se deliberadamente a afirmação de que "o sistema acerta 100\,\%". O resultado com peso científico não é o número isolado de qualquer bateria, mas o contraste entre elas: o salto da segunda para a terceira bateria isolou um defeito de \textit{firmware}; a queda na quarta e a recuperação na quinta isolaram um artefato do banco de estímulos; e o desempenho da quinta bateria, obtido sobre a morfologia mais realista e mais exigente, é o que confere credibilidade ao da terceira. Todos os estímulos empregados até aqui, contudo, foram gerados artificialmente. A caracterização sobre uma base anotada de \acs{ECG} real é retomada na Seção~\ref{sec:resMITBIH}; os ensaios clínicos com pacientes permanecem como etapa subsequente (Seção~\ref{sec:resConsideracoes}).
+
+\subsection{Generalização sobre eletrocardiograma real}
+\label{sec:resMITBIH}
+
+As baterias anteriores, por se apoiarem em estímulos gerados artificialmente, medem o comportamento do sistema sobre morfologias e ritmos por ele controlados. Para verificar se o desempenho observado se sustenta sobre o \acs{ECG} de pacientes reais, com toda a variabilidade fisiológica que os estímulos sintéticos não reproduzem, recorreu-se à base MIT-BIH de arritmias — repositório anotado por cardiologistas, de referência consolidada na literatura e já utilizado na validação original do detector reaproveitado (Seção~\ref{sec:deteccaoBorda}). Dela extraíram-se 60 segmentos de 30~s, 15 para cada uma de quatro classes — normal, taquicardia, bradicardia e arritmia sinusal —, classificadas por seus intervalos R-R; o bloqueio e a parada sinoatrial não figuram por não ocorrerem, na base, em quantidade utilizável.
+
+Numa primeira etapa (sexta bateria), os 60 segmentos foram fornecidos diretamente ao algoritmo de detecção, sem passar pela cadeia de aquisição, de modo a medir o \emph{algoritmo} isoladamente sobre o sinal real. A acurácia global foi de 81,7\,\% (49 dos 60 segmentos), com a matriz de confusão da Tabela~\ref{tab:matrizMITBIH}. A queda em relação aos 100\,\% das baterias com estímulo controlado concentra-se, quase integralmente, na flag de arritmia sinusal: das onze classificações incorretas, dez são detecções de arritmia sobre segmentos de outras classes, e o valor preditivo positivo desse critério cai a 58\,\%. Trata-se da mesma baixa especificidade caracterizada na Seção~\ref{sec:resArritmia}, agora manifesta sobre \acs{ECG} real: a variabilidade batimento a batimento naturalmente presente no ritmo de pacientes reais satisfaz o critério de arritmia sinusal, ausente dos estímulos sintéticos regulares. Esse valor de 81,7\,\% representa, assim, o teto do \emph{método} sobre sinal real, e não uma limitação introduzida pelo sistema aqui desenvolvido.
+
+\begin{table}[htb]
+\centering
+\caption{Matriz de confusão da sexta bateria (60 segmentos do MIT-BIH, 15 por classe, fornecidos diretamente ao detector; linha = classe esperada, coluna = classe detectada).}
+\label{tab:matrizMITBIH}
+\begin{tabular}{l c c c c}
+\hline
+\textbf{Esperada / Detectada} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arrit.} \\
+\hline
+Normal            & 11 & 0  & 0  & 4  \\
+Taquicardia       & 0  & 11 & 0  & 4  \\
+Bradicardia       & 0  & 0  & 13 & 2  \\
+Arritmia sinusal  & 0  & 1  & 0  & 14 \\
+\hline
+\end{tabular}
+\end{table}
+
+Numa segunda etapa (oitava bateria), os mesmos segmentos do MIT-BIH foram reproduzidos pelo gerador e adquiridos pela cadeia física completa — divisor resistivo, \acs{AFE}, filtros digitais e quantização a 640~SPS —, no mesmo protocolo de disparo único das baterias anteriores. Como a base carece de bloqueio e de parada, acrescentou-se, para o bloqueio, um segmento real de bloqueio sinoatrial extraído do registro~232 do MIT-BIH, totalizando cinco classes. Os representantes de cada classe foram escolhidos entre os segmentos que o detector já classificava corretamente na etapa anterior, maximizando a distância ao limiar de decisão, e cada um foi reproduzido 30 vezes, perfazendo 150 ensaios. O sistema classificou corretamente os 150, sem erro de processamento.
+
+O valor dessa bateria não está no número em si — a seleção de representantes favoráveis o torna deliberadamente otimista e ele não deve ser lido como acurácia do sistema sobre \acs{ECG} real qualquer —, mas na comparação \emph{pareada} com a sexta bateria. Como o conjunto de estímulos é o mesmo, a diferença entre as duas mede exclusivamente o que a aquisição acrescenta: nos segmentos em que o algoritmo decide corretamente sobre o sinal ideal, a cadeia física preserva a decisão integralmente, sem que o divisor, o \acs{AFE}, os filtros ou a quantização custem um único acerto. As duas baterias, em conjunto, separam a limitação do \emph{método} (os 81,7\,\% da sexta) do custo da \emph{aquisição} (nulo, pela oitava) — atribuição que nenhuma das duas, isolada, permitiria.
 
 \subsection{Robustez ao ruído}
 \label{sec:resRuido}
