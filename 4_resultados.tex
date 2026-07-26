@@ -418,7 +418,7 @@ As baterias anteriores empregaram estímulos livres de ruído, adequados para is
 
 A Figura~\ref{fig:ruidoTipos} ilustra os três tipos de perturbação, na maior amplitude, somados ao estímulo normal. A Tabela~\ref{tab:ruidoAcuracia} resume a acurácia de classificação por condição. A acurácia global foi de 93,5\,\% (1.515 dos 1.620 ensaios).
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{assets/figura_ruido_tipos.pdf}
 \caption{Estímulo normal com cada um dos três tipos de ruído somado a 30\,\% da excursão do sinal: (a) deriva da linha de base a 0,33~Hz; (b) interferência de rede a 60~Hz; (c) ruído aleatório de banda larga. Trecho de 4~s.}
@@ -471,7 +471,7 @@ A causa é de outra ordem. O filtro passa-baixa de 40~Hz do \textit{firmware} é
 
 Avaliou-se, ainda assim, o acréscimo de um filtro rejeita-faixa (\textit{notch}) de 60~Hz à cadeia digital, anterior ao passa-baixa. O filtro foi projetado como uma seção biquadrática de segunda ordem, com atenuação superior a 200~dB na frequência central e resposta essencialmente plana na banda do complexo QRS (Figura~\ref{fig:notchResposta}). Dois fatores de qualidade foram testados.
 
-\begin{figure}[htb]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{assets/figura_notch_resposta.pdf}
 \caption{Resposta em frequência do filtro \textit{notch} de 60~Hz para os dois fatores de qualidade avaliados ($Q=8$ e $Q=2$), à taxa de amostragem de 640~SPS. Ambos anulam a componente de 60~Hz; o filtro mais largo ($Q=2$) atenua levemente a borda superior da banda do QRS, mas reduz a duração da resposta transitória responsável pela introdução de picos espúrios.}
