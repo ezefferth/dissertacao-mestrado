@@ -13,7 +13,7 @@ Durante a montagem, validou-se o reconhecimento de ambos os periféricos pelo mi
 
 O conjunto foi acomodado em um invólucro impresso em 3D, que serve de encapsulamento do protótipo. A Figura~\ref{fig:prototipo} apresenta o dispositivo construído. Na vista interna (Figura~\ref{fig:prototipo}a) distinguem-se a bateria de íons de lítio, a placa do \acs{AFE} CJMCU-1293 com o conector da antena \textit{LoRa} e, na base, o conjunto XIAO ESP32-S3 com o módulo Wio-SX1262. Com o invólucro fechado (Figura~\ref{fig:prototipo}b), o dispositivo conecta-se ao paciente por um cabo de três derivações terminado em eletrodos de pressão (\textit{snap}) nas cores do padrão internacional IEC (\textit{International Electrotechnical Commission}) — vermelho (braço direito), amarelo (braço esquerdo) e verde (perna esquerda). A vista lateral (Figura~\ref{fig:prototipo}c) evidencia a porta USB-C destinada à recarga da bateria e as aberturas de ventilação. O invólucro definitivo, considerando ergonomia, segurança elétrica e fixação ao paciente durante a atividade física, encontra-se em fase de refinamento.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \subfloat[Vista interna (invólucro aberto)]{\includegraphics[width=0.30\linewidth]{assets/figura_03_prototipo_componentes_internos.jpg}}\hfill
 \subfloat[Dispositivo montado e cabo de eletrodos]{\includegraphics[width=0.30\linewidth]{assets/figura_01_prototipo_vista_superior_eletrodos.jpg}}\\[1ex]
@@ -71,7 +71,7 @@ A investigação atribuiu o fenômeno à ausência de uma referência de modo co
 
 A revalidação foi conduzida em um teste de bancada com o sistema conectado ao próprio autor. Registraram-se 30~s do sinal bruto de cada derivação (modo de diagnóstico, sem filtragem) a uma taxa efetiva de 596~amostras/s. Após a correção, a derivação II passou a exibir os complexos QRS de forma nítida e com a polaridade esperada, além das ondas P e T, permitindo a estimativa de uma frequência cardíaca em torno de 90~bpm. A Figura~\ref{fig:sinalLead2} apresenta um trecho de 5~s da derivação II, no qual se contrasta o sinal bruto com a saída da cadeia de filtros digitais replicada em \textit{software} (passa-baixas de 40~Hz e passa-altas de 0,5~Hz, Seção~\ref{sec:condicionamento}), evidenciando a remoção do desvio de linha de base e a preservação da morfologia do complexo QRS.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{assets/sinal_lead2_rld.pdf}
 \caption{Trecho de 5~s da derivação II adquirida no teste de bancada, com o RLD ativo: sinal bruto (acima) e após a cadeia de filtros digitais do \textit{firmware} (abaixo).}
@@ -95,7 +95,7 @@ III & 0,13\,\% & 0,03\,\% & 4,3$\times$ \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{assets/espectro_rld.pdf}
 \caption{Espectro da derivação III no teste de bancada, com o RLD desconectado e ativo. A linha tracejada indica a frequência da rede elétrica (60~Hz).}
@@ -147,7 +147,7 @@ As telas operacionais contemplaram o painel de eventos cardíacos, atualizado em
 
 As principais telas do aplicativo são apresentadas na Figura~\ref{fig:telasApp}. Destaca-se o painel de eventos cardíacos (Figura~\ref{fig:telasApp}a), no qual os eventos transmitidos pelo dispositivo — validados na Seção~\ref{sec:resPipeline} — são exibidos em tempo real, com indicação do tipo de anomalia, da frequência cardíaca e do paciente associado.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \subfloat[Painel de eventos cardíacos]{\includegraphics[width=0.30\linewidth]{assets/telaMonitoramento.jpeg}}\hfill
 \subfloat[Pacientes]{\includegraphics[width=0.30\linewidth]{assets/telaPacientes.jpeg}}\hfill
@@ -224,7 +224,7 @@ A validação não se deu em um único experimento, mas em uma sequência de cin
 }
 \end{table}
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.92\linewidth]{assets/baterias_progressao.pdf}
 \caption{Acurácia global de detecção em cada bateria de validação. As baterias de morfologia sintética ou realista livre de artefatos (3 e 5, em destaque) atingiram 100\,\%, enquanto as baterias de diagnóstico (1, 2, 4 e 4b) expuseram, cada uma, uma limitação distinta do banco de estímulos ou da aquisição, anotada sob a respectiva barra. O contraste entre as baterias, e não o valor isolado de qualquer uma, é o resultado central.}
@@ -263,7 +263,7 @@ A persistência dos erros no traçado normal, mesmo após o ajuste dos estímulo
 
 Foi essa refutação que motivou o despejo do sinal bruto adquirido. No traçado bruto (Figura~\ref{fig:perdaAmostras}), identificaram-se seis intervalos R-R anômalos, periódicos a cada aproximadamente 4,9~s, cada um comprimindo um intervalo de 800 para cerca de 708~ms. A causa foi localizada na aquisição, em um mecanismo distinto da saturação da interface serial descrita na Seção~\ref{sec:resFirmware}: agora com a saída de depuração já decimada, era a própria rotina de diagnóstico que consultava o espaço ocupado no sistema de arquivos local (\textit{LittleFS}) dentro do laço principal, a cada 5~s, bloqueando o processador por cerca de 105~ms; como a rotina de interrupção apenas sinaliza a disponibilidade de uma nova amostra, cerca de 67 amostras colapsavam em uma única leitura. O relatório de diagnóstico registrava 3.133 amostras válidas em vez das 3.200 esperadas — uma perda de 2,08\,\%, mais sutil que a da saturação serial (que reduzia a taxa a cerca de 560~SPS) e, por isso mesmo, mais difícil de identificar.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\linewidth]{assets/perda_amostras_rr.pdf}
 \caption{Artefato de perda de amostras no sinal bruto de um segmento normal (75~bpm) indevidamente classificado como arritmia. Acima, a derivação II adquirida, com os picos R detectados; abaixo, a série de intervalos R-R, na qual se observam seis compressões periódicas — de $\approx$800 para $\approx$710~ms, a cada $\approx$4,9~s —, coincidentes com o bloqueio do laço de aquisição pela rotina de diagnóstico. As quedas aproximam a diferença entre intervalos sucessivos do limiar de arritmia (120~ms), produzindo a detecção espúria.}
@@ -289,7 +289,7 @@ A quinta bateria foi construída para eliminar simultaneamente os artefatos das 
 
 A Figura~\ref{fig:casos6classes} ilustra, para cada uma das seis classes, um trecho representativo do sinal de \acs{ECG} tal como capturado pelo próprio dispositivo durante a injeção do estímulo correspondente, evidenciando as características morfológicas e de ritmo que fundamentam a classificação: a regularidade do traçado normal, o encurtamento e o alargamento dos intervalos na taquicardia e na bradicardia, a variabilidade batimento a batimento da arritmia sinusal, os batimentos ausentes do bloqueio sinoatrial e a longa pausa da parada sinoatrial.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{assets/casos_6classes.pdf}
 \caption{Exemplos de \acs{ECG} das seis classes, capturados pelo dispositivo (derivação DII) sob injeção do gerador NI myDAQ. Cada bloco exibe um trecho representativo da respectiva classe; nos painéis de bloqueio e parada, a janela é centrada na pausa característica.}
@@ -418,7 +418,7 @@ As baterias anteriores empregaram estímulos livres de ruído, adequados para is
 
 A Figura~\ref{fig:ruidoTipos} ilustra os três tipos de perturbação, na maior amplitude, somados ao estímulo normal. A Tabela~\ref{tab:ruidoAcuracia} resume a acurácia de classificação por condição. A acurácia global foi de 93,5\,\% (1.515 dos 1.620 ensaios).
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{assets/figura_ruido_tipos.pdf}
 \caption{Estímulo normal com cada um dos três tipos de ruído somado a 30\,\% da excursão do sinal: (a) deriva da linha de base a 0,33~Hz; (b) interferência de rede a 60~Hz; (c) ruído aleatório de banda larga. Trecho de 4~s.}
@@ -471,7 +471,7 @@ A causa é de outra ordem. O filtro passa-baixa de 40~Hz do \textit{firmware} é
 
 Avaliou-se, ainda assim, o acréscimo de um filtro rejeita-faixa (\textit{notch}) de 60~Hz à cadeia digital, anterior ao passa-baixa. O filtro foi projetado como uma seção biquadrática de segunda ordem, com atenuação superior a 200~dB na frequência central e resposta essencialmente plana na banda do complexo QRS (Figura~\ref{fig:notchResposta}). Dois fatores de qualidade foram testados.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{assets/figura_notch_resposta.pdf}
 \caption{Resposta em frequência do filtro \textit{notch} de 60~Hz para os dois fatores de qualidade avaliados ($Q=8$ e $Q=2$), à taxa de amostragem de 640~SPS. Ambos anulam a componente de 60~Hz; o filtro mais largo ($Q=2$) atenua levemente a borda superior da banda do QRS, mas reduz a duração da resposta transitória responsável pela introdução de picos espúrios.}

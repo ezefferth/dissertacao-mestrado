@@ -13,6 +13,14 @@
 %\usepackage{subfigure}
 \usepackage{subfloat}
 \usepackage{float}   % posicionamento [H] (figura fixa junto ao texto que a cita)
+% Parâmetros de float: reduzem o adiamento das figuras para o fim do capítulo,
+% permitindo que ocupem mais da página de texto e sejam colocadas mais cedo.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{totalnumber}{4}
 
 %%% acentuação
 % \usepackage[latin1]{inputenc}
