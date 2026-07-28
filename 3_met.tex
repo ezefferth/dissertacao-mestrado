@@ -241,23 +241,33 @@ $\mathcal{R} \leftarrow \emptyset$\;
 \Return $\mathcal{R}$\;
 \end{algorithm}
 
-Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm); as demais categorias basearam-se na variabilidade e nas diferenças entre intervalos R-R sucessivos. A taquicardia e a bradicardia podem coexistir com a arritmia sinusal em um mesmo segmento, sendo ambas registradas na máscara de bits; apenas as pausas graves (bloqueio e parada) têm precedência sobre a bradicardia. Dessa forma, a arritmia sinusal, de caráter informativo e baixa especificidade, não mascara os eventos de frequência cardíaca, cuja prioridade final é resolvida na ingestão (Seção~\ref{sec:resPipeline}). Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
+Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm). A arritmia sinusal foi sinalizada quando a diferença entre dois intervalos R-R consecutivos excedeu 120 ms.
+
+As duas classes de pausa foram decididas em relação ao ritmo de base do próprio segmento, e não por duração absoluta, em conformidade com sua definição clínica: no bloqueio sinoatrial de segundo grau o nó sinusal despolariza mas o impulso é barrado antes de atingir o átrio, de modo que a pausa corresponde a um múltiplo inteiro do intervalo entre batimentos — dois ou três ciclos —, ao passo que na parada sinusal o nó deixa de disparar e a pausa não guarda proporção inteira com o ritmo de base, excedendo três ciclos. Adotou-se como ritmo de base a \textbf{mediana} dos intervalos R-R do segmento, e não a média: por ser uma estatística de ordem, a mediana não é deslocada pelas próprias pausas que se pretende medir, ao passo que a média o seria, encolhendo a razão e ocultando a pausa. Como a igualdade exata com o múltiplo é inatingível na presença da variabilidade fisiológica e da quantização temporal imposta pela taxa de amostragem, a comparação admitiu uma tolerância relativa de 5\,\%. Não se impôs qualquer piso de duração absoluta: a uma frequência cardíaca elevada, uma pausa de dois ciclos é breve em termos absolutos, mas continua sendo, por definição, um bloqueio.
+
+Registre-se que esta formulação relativa constitui a única alteração de regra de decisão introduzida no algoritmo reaproveitado de \citet{moraesFirmwareECG}. Em sua versão original, ambas as pausas eram decididas por duração absoluta --- bloqueio entre 4 e 6~s, parada acima de 6~s ---, faixa que corresponde a pausas de gravidade bem superior à do quadro que se pretende reconhecer: a uma frequência cardíaca usual, um bloqueio de dois a três ciclos produz pausa de aproximadamente 1,6 a 2,4~s e não alcançaria o piso de 4~s. A substituição foi conduzida sob orientação dos autores do algoritmo e sua consequência experimental é reportada na Seção~\ref{sec:resValidacaoFinal}; as demais regras --- limiares de taquicardia, bradicardia e arritmia sinusal, contadores e precedências --- permaneceram como no original.
+
+A taquicardia e a bradicardia podem coexistir com a arritmia sinusal em um mesmo segmento, sendo ambas registradas na máscara de bits; apenas as pausas graves (bloqueio e parada) têm precedência sobre a bradicardia. Dessa forma, a arritmia sinusal, de caráter informativo e baixa especificidade, não mascara os eventos de frequência cardíaca, cuja prioridade final é resolvida na ingestão (Seção~\ref{sec:resPipeline}). Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
 
 \begin{algorithm}[ht]
 \caption{Classificação de arritmias a partir dos intervalos R-R, conforme \citet{moraesFirmwareECG}}
 \label{alg:classif}
-\KwIn{Picos R $\mathcal{R}$; limiares $RR_{taq}=600$ ms e $RR_{bra}=1000$ ms}
+\KwIn{Picos R $\mathcal{R}$; limiares $RR_{taq}=600$ ms, $RR_{bra}=1000$ ms e tolerância $\tau=0{,}05$}
 \KwOut{Categoria(s) de anormalidade do segmento}
 \lIf{$|\mathcal{R}|<3$}{\Return erro de processamento}
 \For{$i \leftarrow 0$ \KwTo $|\mathcal{R}|-2$}{
   $RR[i] \leftarrow (\mathcal{R}_{i+1}-\mathcal{R}_i)\cdot 1000 / f_s$\tcp*{intervalo R-R em ms}
 }
-$\overline{RR} \leftarrow \text{média}(RR)$\;
+$\overline{RR} \leftarrow \text{média}(RR)$;\ \ $\widetilde{RR} \leftarrow \text{mediana}(RR)$\tcp*{ritmo de base}
 $a \leftarrow 0$;\ $b \leftarrow 0$;\ $p \leftarrow 0$\tcp*{contadores: arritmia, bloqueio, parada}
 \For{$i \leftarrow 0$ \KwTo $|RR|-2$}{
+  $\rho \leftarrow RR[i] / \widetilde{RR}$\tcp*{pausa em número de ciclos}
   \lIf{$|RR[i{+}1]-RR[i]| > 120$}{$a \leftarrow a+1$}
-  \lIf{$4000 \le RR[i] \le 6000$}{$b \leftarrow b+1$}
-  \lIf{$RR[i] > 6000$ \textbf{e} $RR[i] \neq 4\,RR[0]$}{$p \leftarrow p+1$}
+  \lIf{$\left|\rho/2-1\right| \le \tau$ \textbf{ou} $\left|\rho/3-1\right| \le \tau$}{$b \leftarrow b+1$}
+  \ElseIf{$\rho > 3(1+\tau)$}{
+    $k \leftarrow \text{round}(\rho)$\;
+    \lIf{$\left|\rho/k-1\right| > \tau$}{$p \leftarrow p+1$}
+  }
 }
 \lIf{$\overline{RR} < RR_{taq}$}{\textbf{Taquicardia}}
 \lIf{$\overline{RR} > RR_{bra}$ \textbf{e} $b=p=0$}{\textbf{Bradicardia}}
