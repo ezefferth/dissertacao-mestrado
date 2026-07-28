@@ -32,6 +32,8 @@ A partir das limitações identificadas, delineiam-se as seguintes frentes de co
 
     \item \textbf{Rejeição da interferência de rede}: reforço da rejeição de modo comum no estágio analógico de entrada — otimização da realimentação pelo eletrodo de perna direita e do aterramento — e avaliação de um filtro adaptativo sincronizado à frequência da rede, verificados sobre interferência de 60~Hz em modo comum, representativa do uso real (Seção~\ref{sec:resNotch}).
 
+    \item \textbf{Critério de pausa relativo ao ritmo de base}: substituição da faixa absoluta de 4 a 6~s, hoje empregada na detecção de bloqueio e de parada sinoatrial, por um critério proporcional ao intervalo R-R mediano do segmento — coerente com a definição clínica, na qual o bloqueio sinoatrial produz pausa múltipla do intervalo P-P e a parada, pausa não múltipla (Seção~\ref{sec:resRevisaoEstimulos}). O critério absoluto deixa de sinalizar bloqueios de dois a três ciclos, típicos em frequências cardíacas usuais. Por implicar alteração da regra de decisão do \textit{firmware} reaproveitado, a mudança demanda anuência dos autores e nova validação sobre base anotada.
+
     \item \textbf{Aquisição contínua durante a transmissão}: distribuição da aquisição e da transmissão entre os dois núcleos do microcontrolador, eliminando a janela cega entre segmentos, e costura de segmentos consecutivos para a detecção de pausas nas fronteiras, mediante anuência dos autores do \textit{firmware} de detecção.
 
     \item \textbf{Validação clínica}: realização de testes controlados com pacientes em atividade física supervisionada na Clínica Escola Integrada da \acs{UFMS}, comparando as detecções do sistema com referências clínicas (\textit{ground truth}) para a aferição de sensibilidade e especificidade.

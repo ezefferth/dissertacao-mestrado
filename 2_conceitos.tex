@@ -30,9 +30,9 @@ Diferentemente dos trabalhos anteriores, centrados na aquisição e na transmiss
 
 Esse \textit{firmware} constitui a base do algoritmo de detecção embarcada adotado nesta dissertação: seu código-fonte foi \textbf{cedido pelos autores} e aqui reutilizado, não constituindo, portanto, contribuição original deste trabalho. A opção pelo reúso, em vez da reimplementação de um detector, decorre de o método já haver sido validado — 99,92\% na detecção dos picos R e 99,67\% na identificação das anomalias — e de o foco desta pesquisa recair sobre a aquisição, o processamento na borda e a \textbf{transmissão} do \acs{ECG} em rede \textit{LoRaWAN}. Enquanto o sistema original foi concebido para um monitor multiparâmetros com processamento local, o presente trabalho parte do mesmo detector e o integra a uma arquitetura de transmissão de longo alcance por \textit{LoRaWAN}, com o posterior encaminhamento dos eventos para a nuvem e para um aplicativo móvel — aspecto não contemplado no trabalho de origem, e que constitui uma das contribuições desta pesquisa. Os detalhes da adaptação realizada para a plataforma adotada são apresentados na Seção~\ref{sec:deteccaoBorda}.
 
-% TODO (ao receber o trabalho completo do Claudinei): completar os dados de publicação
-% da entrada moraesFirmwareECG no main.bib; se pertinente, citar Yeh e Wang (método DOM
-% original) e outros trabalhos correlatos de detecção embarcada que o usuário fornecer.
+% TODO: se pertinente, citar Yeh e Wang (método DOM original) e outros trabalhos
+% correlatos de detecção embarcada que o usuário fornecer.
+% (Dados de publicação de moraesFirmwareECG já confirmados: SEMISH 2026, p. 251-262.)
 
 
 \subsection{Tecnologias de Comunicação Sem Fio Aplicadas ao Monitoramento de ECG}
