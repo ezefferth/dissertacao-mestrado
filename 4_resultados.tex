@@ -384,6 +384,23 @@ Numa segunda etapa (oitava bateria), os mesmos segmentos do MIT-BIH foram reprod
 
 O valor dessa bateria não está no número em si — a seleção de representantes favoráveis o torna deliberadamente otimista e ele não deve ser lido como acurácia do sistema sobre \acs{ECG} real qualquer —, mas na comparação \emph{pareada} com a sexta bateria. Como o conjunto de estímulos é o mesmo, a diferença entre as duas mede exclusivamente o que a aquisição acrescenta: nos segmentos em que o algoritmo decide corretamente sobre o sinal ideal, a cadeia de aquisição preserva a decisão integralmente, sem que o divisor, o \acs{AFE}, os filtros ou a quantização custem um único acerto. As duas baterias, em conjunto, separam a limitação do \emph{método} (os 81,7\,\% da sexta) do custo da \emph{aquisição} (nulo, pela oitava) — atribuição que nenhuma das duas, isolada, permitiria.
 
+Os valores das sexta e oitava baterias referem-se ao critério de pausa por duração absoluta, vigente quando foram medidas. Como a revisão desse critério altera a regra de decisão, os 60 segmentos foram reavaliados sobre as configurações posteriores do detector, e o resultado é reportado na Tabela~\ref{tab:mitbihConfig}. A formulação relativa, isoladamente, reduz a acurácia a 71,7\,\%: em ritmos intrinsecamente irregulares --- fibrilação atrial e ectopia ventricular frequente, presentes nos registros 200, 202 e 203 --- a mediana deixa de representar um ritmo de base, e sete segmentos passam a satisfazer o critério de pausa sem que haja pausa sinusal. O mecanismo é o mesmo identificado na décima segunda bateria: intervalos R-R longos, aqui de origem fisiológica e não de perda de picos, satisfazem a razão exigida. Com o mecanismo de proteção descrito na Seção~\ref{sec:resGuarda}, a acurácia alcança 85,0\,\%, superando o valor da configuração original.
+
+\begin{table}[htb]
+\centering
+\caption{Acurácia sobre os 60 segmentos do MIT-BIH nas três configurações do critério de detecção.}
+\label{tab:mitbihConfig}
+\begin{tabular}{l c l}
+\hline
+\textbf{Configuração do critério} & \textbf{Acurácia (\%)} & \textbf{Limitação dominante} \\
+\hline
+Pausa por duração absoluta        & 81,7 & Especificidade da arritmia sinusal \\
+Pausa relativa ao R-R             & 71,7 & Falso positivo de pausa em ritmo irregular \\
+Pausa relativa + guarda de regularidade & 85,0 & Especificidade da arritmia sinusal \\
+\hline
+\end{tabular}
+\end{table}
+
 \subsection{Reprodução e revisão do banco de estímulos do professor}
 \label{sec:resRevisaoEstimulos}
 
@@ -519,16 +536,78 @@ A validação compreende duas baterias complementares. A décima primeira exerci
 \subsection{Décima primeira bateria: desempenho sobre sinal limpo}
 \label{sec:resBateria11}
 
-% TODO(resultados): inserir matriz de confusão (tab:matrizBat11), acurácia global,
-% métricas por classe e erro de estimativa de FC, a partir de
-% app/node/test/tabelas_bat11.tex (gerado por make_tables.py).
+A décima primeira bateria classificou corretamente os 180 segmentos, sem erro de processamento e sem qualquer detecção espúria: a matriz de confusão é diagonal (Tabela~\ref{tab:matrizBat11}) e a máscara de anomalias de cada segmento apresentou um único \textit{bit} ativo, correspondente à classe do estímulo. A ausência de coocorrência é relevante em si: nas baterias anteriores, o critério de arritmia sinusal acompanhava as detecções de pausa, e essa contaminação foi eliminada pela revisão do critério (Seção~\ref{sec:validacaoGerador}).
+
+\begin{table}[htb]
+\centering
+\caption{Matriz de confusão da décima primeira bateria (sinal limpo, 30 segmentos por classe).}
+\label{tab:matrizBat11}
+\begin{tabular}{lrrrrrr}
+\hline
+\textbf{Classe do estímulo} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arritmia} & \textbf{Bloqueio} & \textbf{Parada} \\
+\hline
+Normal            & 30 & 0 & 0 & 0 & 0 & 0 \\
+Taquicardia       & 0 & 30 & 0 & 0 & 0 & 0 \\
+Bradicardia       & 0 & 0 & 30 & 0 & 0 & 0 \\
+Arritmia sinusal  & 0 & 0 & 0 & 30 & 0 & 0 \\
+Bloqueio sinoatrial & 0 & 0 & 0 & 0 & 30 & 0 \\
+Parada sinoatrial & 0 & 0 & 0 & 0 & 0 & 30 \\
+\hline
+\end{tabular}
+\end{table}
+
+O resultado das classes de pausa merece destaque, por ser aquele que mede o efeito da revisão do critério. Os estímulos de bloqueio e de parada empregados aqui são \textbf{os mesmos arquivos} que, na nona bateria, não foram reconhecidos em nenhum dos 30 segmentos (Seção~\ref{sec:resRevisaoEstimulos}): suas pausas de dois a três ciclos, de 1,9 a 3,3~s, situavam-se abaixo do piso de 4~s do critério absoluto. Nenhuma característica do estímulo foi alterada; apenas a regra de decisão. A passagem de 0/30 para 30/30 é, portanto, atribuível exclusivamente à revisão do critério, e constitui a evidência de que a formulação relativa reconhece o quadro clínico que a absoluta deixava passar.
+
+Quanto à estimativa da frequência cardíaca, o erro absoluto médio foi nulo em cinco das seis classes e de 1,0~bpm na parada sinoatrial. Convém interpretar esses valores com cautela: os estímulos cedidos pelo professor colaborador são exatamente periódicos, de modo que a frequência cardíaca de referência é um valor único e a estimativa a reproduz sem resíduo. O erro de 1,0~bpm na parada não é ruído de medida, mas diferença de arredondamento --- a frequência do estímulo é de 57,9~bpm, registrada como 58 no gabarito e estimada como 57 pelo dispositivo. Uma medida mais representativa do erro de estimativa sob ritmo fisiológico é a da quinta bateria (Seção~\ref{sec:resBateriaFinal}), cujo estímulo incorporava variação (\textit{jitter}) do intervalo R-R e na qual o erro absoluto médio situou-se entre 0,2 e 0,5~bpm.
 
 \subsection{Décima segunda bateria: desempenho sob ruído}
 \label{sec:resBateria12}
 
-% TODO(resultados): inserir tabela de acurácia por condição de ruído
-% (tab:ruidoBat12) e comparação com a décima bateria, a partir de
-% app/node/test/tabelas_bat12_ruido.tex (gerado por tabela_ruido.py).
+A décima segunda bateria submeteu as mesmas seis classes às três formas de ruído especificadas na Seção~\ref{sec:resRuido}, cada uma em três amplitudes, totalizando 54 condições e 1.620 ensaios. A acurácia global foi de 92,6\,\% (1.500 de 1.620), sem qualquer erro de processamento. A Tabela~\ref{tab:ruidoBat12} discrimina o desempenho por condição.
+
+\begin{table}[htb]
+\centering
+\caption{Desempenho da décima segunda bateria por condição de ruído (30 segmentos por classe; 180 por condição).}
+\label{tab:ruidoBat12}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\hline
+\textbf{Condição} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arritmia} & \textbf{Bloqueio} & \textbf{Parada} & \textbf{Total} & \textbf{MAE FC (bpm)} \\
+\hline
+Deriva 0,33 Hz, 10\,\% & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+Deriva 0,33 Hz, 20\,\% & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+Deriva 0,33 Hz, 30\,\% & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+Rede 60 Hz, 10\,\%     & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+Rede 60 Hz, 20\,\%     & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,3 \\
+Rede 60 Hz, 30\,\%     & 0/30  & 0/30  & 0/30  & 0/30  & 30/30 & 30/30 & 60/180  & 14,0 \\
+Aleatório, 10\,\%      & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+Aleatório, 20\,\%      & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+Aleatório, 30\,\%      & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 30/30 & 180/180 & 0,2 \\
+\hline
+\textbf{Global}        &       &       &       &       &       &       & \textbf{1.500/1.620} & \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+Oito das nove condições resultaram em acurácia integral, com erro de estimativa da frequência cardíaca inferior a 0,3~bpm. A deriva de linha de base foi rejeitada até a amplitude máxima, resultado atribuível ao filtro passa-altas de 0,5~Hz, cuja frequência de corte situa-se acima da componente de 0,33~Hz da perturbação. O ruído aleatório de banda larga, que atravessa parcialmente a cascata de filtros e poderia produzir picos espúrios, também não degradou o desempenho em nenhuma amplitude.
+
+A totalidade das 120 falhas concentra-se na interferência de rede de 60~Hz na amplitude de 30\,\%, e o modo de falha difere daquele observado na décima bateria. Sob essa condição, as quatro classes de ritmo --- normal, taquicardia, bradicardia e arritmia sinusal --- foram classificadas como \textbf{bloqueio sinoatrial}, enquanto o bloqueio e a parada permaneceram corretos. O mecanismo subjacente é o mesmo já caracterizado, a perda de picos R, mas sua consequência mudou com o critério de pausa: um pico não detectado produz um intervalo R-R de exatamente duas vezes a mediana do segmento, que é precisamente a definição de bloqueio na formulação relativa. Sob o critério absoluto anterior, o mesmo intervalo --- de aproximadamente 2~s, para um ritmo de 1~s --- não alcançava o piso de 4~s e não era interpretado como pausa; a décima bateria registrava, nessa condição, deslocamento da frequência cardíaca estimada, e não detecção de pausa. A bradicardia, que ali permanecia correta por continuar acima do limiar de 1000~ms mesmo com a frequência subestimada, passa agora a ser suprimida pela pausa espúria. O erro absoluto médio de estimativa da frequência cardíaca nessa condição, de 14,0~bpm contra menos de 0,3~bpm nas demais, quantifica a extensão da perda de picos.
+
+Registra-se, portanto, um efeito colateral da revisão do critério: a formulação relativa é \textbf{estruturalmente mais sensível à perda de picos R} do que a absoluta, uma vez que um único pico não detectado basta para satisfazer o critério de bloqueio. A observação é relevante para além da bancada, pois a perda de picos não decorre apenas de interferência de rede, mas também de má aderência de eletrodo e de artefato de movimento, condições esperadas em uso ambulatorial. A investigação de um mecanismo de proteção para esse caso, bem como seus limites, é apresentada na Seção~\ref{sec:resGuarda}.
+
+Cabe ainda observar que a falha sob 60~Hz a 30\,\% é uma limitação conhecida da montagem, e não uma regressão: sua causa --- a injeção da interferência em modo diferencial, que contorna a rejeição do estágio analógico de entrada --- e a inadequação do \textit{notch} digital como solução foram estabelecidas na Seção~\ref{sec:resNotch}.
+
+\subsection{Guarda de regularidade do ritmo}
+\label{sec:resGuarda}
+
+As duas manifestações de falso positivo de pausa relatadas acima --- o ritmo irregular do MIT-BIH (Seção~\ref{sec:resMITBIH}) e a perda de picos sob interferência de rede (Seção~\ref{sec:resBateria12}) --- compartilham a mesma origem: um intervalo R-R igual ao dobro da mediana é, isoladamente, indistinguível de um bloqueio sinoatrial genuíno. Investigou-se, por isso, um mecanismo de proteção fundado na hipótese de que as duas situações diferem não no intervalo isolado, mas na \emph{distribuição} da irregularidade: em um bloqueio verdadeiro ela se concentra nas pausas, e os batimentos entre elas mantêm ritmo regular; em fibrilação atrial ou ectopia frequente, ela se distribui por todos os intervalos.
+
+A revisão do critério de arritmia sinusal (Seção~\ref{sec:validacaoGerador}) tornou essa distinção mensurável sem qualquer estatística adicional. Ao excluir da contagem as diferenças produzidas pelas próprias pausas, o contador de arritmia passou a medir exclusivamente a variabilidade batimento a batimento. Sobre os 30 segmentos de ritmo sinusal do MIT-BIH --- \acs{ECG} humano real, e portanto a referência pertinente --- esse contador situa-se entre 0 e 4; nos sete segmentos de falso positivo, entre 6 e 25. A \textbf{guarda de regularidade} consiste, então, em descartar as pausas do segmento quando o contador atinge 5, na leitura de que um segmento com variabilidade batimento a batimento dessa ordem não sustenta um diagnóstico de pausa.
+
+Os resultados delimitam com precisão o alcance do mecanismo. Sobre o MIT-BIH, a guarda elimina os sete falsos positivos e eleva a acurácia de 71,7\,\% para 85,0\,\% (Tabela~\ref{tab:mitbihConfig}). Sobre a bancada, é rigorosamente \emph{neutra}: verificada nas 60 condições das duas baterias finais --- as 54 com ruído e as 6 com sinal limpo ---, não alterou a classificação de nenhuma delas, o que se explica pela regularidade dos estímulos empregados, cujo contador de arritmia não alcança o limiar. Sobre a interferência de rede a 30\,\%, contudo, a guarda \textbf{não recupera} as 120 falhas: a perda de picos causada por uma interferência periódica é ela própria sistemática, e produz um padrão regular que a guarda, por construção, não distingue de uma pausa real. Verificou-se também que o bloqueio e a parada sinoatrial permanecem corretos nos 30 segmentos sob essa condição, isto é, o mecanismo não introduz supressão indevida das pausas verdadeiras.
+
+Duas ressalvas devem acompanhar esse resultado. A primeira é que a margem entre os dois grupos é estreita --- 4 no maior segmento de ritmo sinusal contra 6 no menor falso positivo --- e não existe, na base, registro de \acs{ECG} humano com bloqueio sinoatrial real que permitisse calibrar o limite inferior; a expectativa de que um bloqueio real permaneça abaixo do limiar apoia-se no argumento fisiológico de que a condição ocorre sobre ritmo sinusal, não em medida direta. A segunda, decorrente da primeira, é que um paciente com arritmia sinusal respiratória acentuada e bloqueio concomitante teria a pausa descartada pela guarda. Por essa razão, o mecanismo foi implementado como opção de compilação, preservando-se a possibilidade de retorno ao comportamento validado nas baterias, e sua adoção definitiva subordina-se à anuência dos autores do algoritmo (Seção~\ref{sec:deteccaoBorda}).
 
 \section{Considerações sobre os Resultados}
 \label{sec:resConsideracoes}
