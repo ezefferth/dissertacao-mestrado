@@ -241,39 +241,57 @@ $\mathcal{R} \leftarrow \emptyset$\;
 \Return $\mathcal{R}$\;
 \end{algorithm}
 
-Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em cinco categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial e parada sinoatrial. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm). A arritmia sinusal foi sinalizada quando a diferença entre dois intervalos R-R consecutivos excedeu 120 ms.
+Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em seis categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial, parada sinoatrial e anomalia não caracterizada. As cinco primeiras provêm do algoritmo reaproveitado; a sexta foi acrescentada neste trabalho e é descrita adiante. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm).
+
+A arritmia sinusal foi sinalizada quando a diferença entre dois intervalos R-R consecutivos situou-se entre 120 ms e 80\,\% do intervalo R-R de base. O limite superior não constava da formulação original e foi acrescentado por uma razão específica: a pausa característica de um bloqueio produz, ela própria, uma diferença entre intervalos sucessivos muito maior que 120 ms --- um bloqueio de um batimento gera diferença igual a um intervalo R-R inteiro ---, de modo que o critério de arritmia disparava em todo segmento contendo pausa. Sem o teto, era necessário suprimir a arritmia à força sempre que houvesse pausa; com ele, o contador passa a medir exclusivamente a variabilidade batimento a batimento, e torna-se utilizável como medida independente da regularidade do ritmo. O valor de 80\,\% decorre de medida: um teto de duas vezes o intervalo R-R, proposto inicialmente, não exclui a pausa de dois ciclos, cuja diferença vale um intervalo e permanece abaixo do limite.
 
 As duas classes de pausa foram decididas em relação ao ritmo de base do próprio segmento, e não por duração absoluta, em conformidade com sua definição clínica: no bloqueio sinoatrial de segundo grau o nó sinusal despolariza mas o impulso é barrado antes de atingir o átrio, de modo que a pausa corresponde a um múltiplo inteiro do intervalo entre batimentos — dois ou três ciclos —, ao passo que na parada sinusal o nó deixa de disparar e a pausa não guarda proporção inteira com o ritmo de base, excedendo três ciclos. Adotou-se como ritmo de base a \textbf{mediana} dos intervalos R-R do segmento, e não a média: por ser uma estatística de ordem, a mediana não é deslocada pelas próprias pausas que se pretende medir, ao passo que a média o seria, encolhendo a razão e ocultando a pausa. Como a igualdade exata com o múltiplo é inatingível na presença da variabilidade fisiológica e da quantização temporal imposta pela taxa de amostragem, a comparação admitiu uma tolerância relativa de 5\,\%. Não se impôs qualquer piso de duração absoluta: a uma frequência cardíaca elevada, uma pausa de dois ciclos é breve em termos absolutos, mas continua sendo, por definição, um bloqueio.
 
-Registre-se que esta formulação relativa constitui a única alteração de regra de decisão introduzida no algoritmo reaproveitado de \citet{moraesFirmwareECG}. Em sua versão original, ambas as pausas eram decididas por duração absoluta --- bloqueio entre 4 e 6~s, parada acima de 6~s ---, faixa que corresponde a pausas de gravidade bem superior à do quadro que se pretende reconhecer: a uma frequência cardíaca usual, um bloqueio de dois a três ciclos produz pausa de aproximadamente 1,6 a 2,4~s e não alcançaria o piso de 4~s. A substituição foi conduzida sob orientação dos autores do algoritmo e sua consequência experimental é reportada na Seção~\ref{sec:resValidacaoFinal}; as demais regras --- limiares de taquicardia, bradicardia e arritmia sinusal, contadores e precedências --- permaneceram como no original.
+A sexta categoria --- \textbf{anomalia não caracterizada} --- foi acrescentada para cobrir os segmentos em que há evidência objetiva de anormalidade no ritmo que não corresponde a nenhuma das cinco condições nomeadas. Sinaliza-se essa categoria quando um intervalo de pelo menos uma vez e meia o R-R de base não satisfaz nenhum dos critérios anteriores, o que ocorre em quatro situações: quando a duração da pausa recai entre as faixas cobertas pelos critérios de bloqueio e de parada; quando a pausa é um múltiplo inteiro superior a três ciclos, caso em que não é parada por definição e excede o alcance do critério de bloqueio; quando há uma pausa isolada de dois ou três ciclos, que não satisfaz a exigência do algoritmo original de mais de uma ocorrência por segmento; e quando o ritmo de base é irregular demais para sustentar diagnóstico de pausa, situação em que as pausas contabilizadas são reatribuídas a esta categoria. A irregularidade é aferida pelo contador de arritmia sinusal, agora desacoplado das pausas pelo teto descrito acima, adotando-se como limite o valor de cinco ocorrências por segmento.
+
+A justificativa para acrescentar uma categoria, em vez de estender as faixas dos critérios existentes, é de natureza clínica. Alargar o critério de bloqueio para abranger durações intermediárias faria o sistema afirmar um diagnóstico que a definição não sustenta; a categoria adicional comunica precisamente o que se sabe --- que há anormalidade e que ela não é caracterizável pelos critérios disponíveis ---, conduta apropriada a um monitor de triagem, cuja finalidade é encaminhar o traçado à inspeção e não substituir o laudo. Na ordem de precedência adotada para o colapso da máscara em rótulo único, esta categoria ocupa a última posição, depois inclusive da arritmia sinusal, por ser, por definição, o que resta quando nenhum critério nomeado se aplica.
+
+Registre-se que a formulação relativa das pausas, o teto do critério de arritmia e a categoria adicional constituem as únicas alterações de regra de decisão introduzidas no algoritmo reaproveitado de \citet{moraesFirmwareECG}. Em sua versão original, ambas as pausas eram decididas por duração absoluta --- bloqueio entre 4 e 6~s, parada acima de 6~s ---, faixa que corresponde a pausas de gravidade bem superior à do quadro que se pretende reconhecer: a uma frequência cardíaca usual, um bloqueio de dois a três ciclos produz pausa de aproximadamente 1,6 a 2,4~s e não alcançaria o piso de 4~s. As três alterações foram conduzidas sob orientação dos autores do algoritmo, e suas consequências experimentais são reportadas na Seção~\ref{sec:resValidacaoFinal}. As demais regras permaneceram como no original: os limiares de taquicardia e de bradicardia, o limite inferior de 120 ms do critério de arritmia, a exigência de mais de uma pausa por segmento para declarar bloqueio, e a supressão mútua entre categorias.
 
 A taquicardia e a bradicardia podem coexistir com a arritmia sinusal em um mesmo segmento, sendo ambas registradas na máscara de bits; apenas as pausas graves (bloqueio e parada) têm precedência sobre a bradicardia. Dessa forma, a arritmia sinusal, de caráter informativo e baixa especificidade, não mascara os eventos de frequência cardíaca, cuja prioridade final é resolvida na ingestão (Seção~\ref{sec:resPipeline}). Segmentos sem detecção de anormalidade foram classificados como normais. Para evitar resultados espúrios, segmentos com número insuficiente de picos R detectados foram marcados como erro de processamento e descartados da transmissão, sendo apenas registrados localmente. O Algoritmo~\ref{alg:classif} resume a regra de decisão aplicada a cada segmento.
 
 \begin{algorithm}[ht]
 \caption{Classificação de arritmias a partir dos intervalos R-R, conforme \citet{moraesFirmwareECG}}
 \label{alg:classif}
-\KwIn{Picos R $\mathcal{R}$; limiares $RR_{taq}=600$ ms, $RR_{bra}=1000$ ms e tolerância $\tau=0{,}05$}
+\KwIn{Picos R $\mathcal{R}$; limiares $RR_{taq}=600$ ms e $RR_{bra}=1000$ ms; tolerância $\tau=0{,}05$; teto de arritmia $\theta=0{,}8$; pausa mínima $\rho_{min}=1{,}5$; irregularidade máxima $a_{max}=5$}
 \KwOut{Categoria(s) de anormalidade do segmento}
 \lIf{$|\mathcal{R}|<3$}{\Return erro de processamento}
 \For{$i \leftarrow 0$ \KwTo $|\mathcal{R}|-2$}{
   $RR[i] \leftarrow (\mathcal{R}_{i+1}-\mathcal{R}_i)\cdot 1000 / f_s$\tcp*{intervalo R-R em ms}
 }
 $\overline{RR} \leftarrow \text{média}(RR)$;\ \ $\widetilde{RR} \leftarrow \text{mediana}(RR)$\tcp*{ritmo de base}
-$a \leftarrow 0$;\ $b \leftarrow 0$;\ $p \leftarrow 0$\tcp*{contadores: arritmia, bloqueio, parada}
+$a \leftarrow 0$;\ $b \leftarrow 0$;\ $p \leftarrow 0$;\ $u \leftarrow 0$\tcp*{arritmia, bloqueio, parada, não caract.}
 \For{$i \leftarrow 0$ \KwTo $|RR|-2$}{
   $\rho \leftarrow RR[i] / \widetilde{RR}$\tcp*{pausa em número de ciclos}
-  \lIf{$|RR[i{+}1]-RR[i]| > 120$}{$a \leftarrow a+1$}
-  \lIf{$\left|\rho/2-1\right| \le \tau$ \textbf{ou} $\left|\rho/3-1\right| \le \tau$}{$b \leftarrow b+1$}
-  \ElseIf{$\rho > 3(1+\tau)$}{
-    $k \leftarrow \text{round}(\rho)$\;
-    \lIf{$\left|\rho/k-1\right| > \tau$}{$p \leftarrow p+1$}
+  $\delta \leftarrow |RR[i{+}1]-RR[i]|$\;
+  \lIf{$120 < \delta < \theta\,\widetilde{RR}$}{$a \leftarrow a+1$}
+  \eIf{$\left|\rho/2-1\right| \le \tau$ \textbf{ou} $\left|\rho/3-1\right| \le \tau$}{
+    $b \leftarrow b+1$\;
+  }{
+    \eIf{$\rho > 3(1+\tau)$}{
+      $k \leftarrow \text{round}(\rho)$\;
+      \lIf{$\left|\rho/k-1\right| > \tau$}{$p \leftarrow p+1$}
+      \lElse{$u \leftarrow u+1$\tcp*{múltiplo inteiro $>3$}}
+    }{
+      \lIf{$\rho \ge \rho_{min}$}{$u \leftarrow u+1$\tcp*{fora de toda faixa}}
+    }
   }
 }
+\If{$a \ge a_{max}$ \textbf{e} $(b>0$ \textbf{ou} $p>0)$}{
+  $u \leftarrow u+b+p$;\ \ $b \leftarrow 0$;\ \ $p \leftarrow 0$\tcp*{ritmo irregular}
+}
+\lIf{$b=1$ \textbf{e} $p=0$}{$u \leftarrow u+1$\tcp*{pausa isolada}}
 \lIf{$\overline{RR} < RR_{taq}$}{\textbf{Taquicardia}}
 \lIf{$\overline{RR} > RR_{bra}$ \textbf{e} $b=p=0$}{\textbf{Bradicardia}}
 \lIf{$a>0$ \textbf{e} $b=p=0$}{\textbf{Arritmia sinusal}}
 \lIf{$b>1$ \textbf{e} $p=0$}{\textbf{Bloqueio sinoatrial}}
 \lIf{$p>0$}{\textbf{Parada sinoatrial}}
+\lIf{$u>0$}{\textbf{Anomalia não caracterizada}}
 \end{algorithm}
 
 \subsection{Armazenamento Local}
@@ -303,7 +321,7 @@ Um aspecto prático da ativação por \acs{OTAA} exigiu tratamento específico. 
     \label{tab:payload}
 \end{table}
 
-O campo de \textit{flags} codificou, em uma máscara de bits, as cinco categorias de anormalidade, permitindo o registro de detecções simultâneas em um mesmo segmento. O identificador sequencial do segmento possibilitou ao servidor detectar eventuais perdas de pacotes. A aquisição do \acs{ECG} foi mantida independentemente do sucesso da conexão \textit{LoRaWAN}: na ausência de rede, os dados permaneceram armazenados localmente até a recuperação da comunicação.
+O campo de \textit{flags} codificou, em uma máscara de bits, as seis categorias de anormalidade, permitindo o registro de detecções simultâneas em um mesmo segmento. O identificador sequencial do segmento possibilitou ao servidor detectar eventuais perdas de pacotes. A aquisição do \acs{ECG} foi mantida independentemente do sucesso da conexão \textit{LoRaWAN}: na ausência de rede, os dados permaneceram armazenados localmente até a recuperação da comunicação.
 
 
 \section{Infraestrutura de Rede LoRaWAN}
