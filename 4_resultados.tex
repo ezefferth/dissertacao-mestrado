@@ -390,12 +390,14 @@ Os valores das sexta e oitava baterias referem-se ao critério de pausa por dura
 \centering
 \caption{Acurácia sobre os 60 segmentos do MIT-BIH nas três configurações do critério de detecção.}
 \label{tab:mitbihConfig}
-\begin{tabular}{l c l}
+% Terceira coluna em p{}: com especificador `l` o texto não quebra e a tabela
+% ultrapassa a margem da página.
+\begin{tabular}{@{}l c p{6.2cm}@{}}
 \hline
 \textbf{Configuração do critério} & \textbf{Acurácia (\%)} & \textbf{Limitação dominante} \\
 \hline
-Pausa por duração absoluta        & 81,7 & Especificidade da arritmia sinusal \\
-Pausa relativa ao R-R             & 71,7 & Falso positivo de pausa em ritmo irregular \\
+Pausa por duração absoluta    & 81,7 & Especificidade da arritmia sinusal \\
+Pausa relativa ao R-R         & 71,7 & Falso positivo de pausa em ritmo irregular \\
 Pausa relativa + sexta classe & 85,0 & Especificidade da arritmia sinusal \\
 \hline
 \end{tabular}
@@ -547,6 +549,7 @@ A décima primeira bateria classificou corretamente os 180 segmentos, sem erro d
 \centering
 \caption{Matriz de confusão da décima primeira bateria (sinal limpo, 30 segmentos por classe).}
 \label{tab:matrizBat11}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrrr}
 \hline
 \textbf{Classe do estímulo} & \textbf{Normal} & \textbf{Taqui.} & \textbf{Bradi.} & \textbf{Arritmia} & \textbf{Bloqueio} & \textbf{Parada} \\
@@ -558,7 +561,8 @@ Arritmia sinusal  & 0 & 0 & 0 & 30 & 0 & 0 \\
 Bloqueio sinoatrial & 0 & 0 & 0 & 0 & 30 & 0 \\
 Parada sinoatrial & 0 & 0 & 0 & 0 & 0 & 30 \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 O resultado das classes de pausa merece destaque, por ser aquele que mede o efeito da revisão do critério. Os estímulos de bloqueio e de parada empregados aqui são \textbf{os mesmos arquivos} que, na nona bateria, não foram reconhecidos em nenhum dos 30 segmentos (Seção~\ref{sec:resRevisaoEstimulos}): suas pausas de dois a três ciclos, de 1,9 a 3,3~s, situavam-se abaixo do piso de 4~s do critério absoluto. Nenhuma característica do estímulo foi alterada; apenas a regra de decisão. A passagem de 0/30 para 30/30 é, portanto, atribuível exclusivamente à revisão do critério, e constitui a evidência de que a formulação relativa reconhece o quadro clínico que a absoluta deixava passar.
@@ -618,7 +622,8 @@ Para respondê-la, conduziu-se uma varredura sistemática. A partir do estímulo
 \centering
 \caption{Classificação em função da duração da pausa, antes da introdução da sexta classe. Razão expressa em múltiplos do intervalo R-R de base (952~ms).}
 \label{tab:zonaMorta}
-\begin{tabular}{l l l}
+% Terceira coluna em p{}: a descrição da situação não cabe em uma linha.
+\begin{tabular}{@{}l l p{7.4cm}@{}}
 \hline
 \textbf{Pausa ($\times$ R-R)} & \textbf{Classe atribuída} & \textbf{Situação} \\
 \hline

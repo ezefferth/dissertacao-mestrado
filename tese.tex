@@ -186,6 +186,18 @@
 \usepackage{baseboxes}
 \usepackage{basecolor}
 
+% ── Quebra de linha ──────────────────────────────────────────────────────────
+% Em português, palavras com ênclise (isolando-se, encontra-se) não são
+% hifenizadas pelo TeX: a presença do hífen explícito inibe os demais pontos de
+% quebra, e a linha estoura a margem. O emergencystretch autoriza o algoritmo a
+% afrouxar o espaçamento em último caso, antes de deixar o texto invadir a
+% margem. Valor conservador: só atua nas linhas que de outro modo estourariam.
+\emergencystretch=3em
+
+% Estrangeirismos sem padrão de hifenização em português.
+\hyphenation{smart-pho-nes smart-pho-ne fir-mwa-re da-ta-set da-ta-sets
+             hard-wa-re soft-wa-re}
+
 
 \begin{document}
 
