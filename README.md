@@ -31,7 +31,7 @@ Eletrodos → XIAO ESP32-S3 + ADS1293 (detecção na borda)
 
 | Arquivo | Conteúdo |
 |---|---|
-| `tese.tex` | Arquivo principal (classe `book`, `natbib`/apalike, `babel` pt-BR) |
+| `dissertacao.tex` | Arquivo principal (classe `book`, `natbib`/apalike, `babel` pt-BR) |
 | `resumo.tex` | Resumo e *Abstract* |
 | `1_introducao.tex` | Introdução, justificativa e objetivos |
 | `2_conceitos.tex` | Revisão bibliográfica (ECG, tecnologias sem fio, LoRaWAN) |
@@ -60,7 +60,7 @@ Requer **MiKTeX** (ou outra distribuição LaTeX com `pdflatex` e `bibtex`).
 .\build.ps1 -clean
 ```
 
-O resultado é gerado em `tese.pdf`.
+O resultado é gerado em `dissertacao.pdf`.
 
 ## Status
 

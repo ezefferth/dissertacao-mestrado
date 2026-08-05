@@ -13,7 +13,7 @@ C:\Work\mestrado\
 │   ├── node/            ← Firmware Arduino (XIAO ESP32-S3 + ADS1293)
 │   ├── rhythmiq/        ← App mobile (Expo 54 / React Native 0.81)
 │   └── rhytmiq-server/  ← Backend (Node.js + Express + Prisma + Postgres)
-├── dissertacao/         ← Texto LaTeX (tese.tex, compilar com build.ps1)
+├── dissertacao/         ← Texto LaTeX (dissertacao.tex, compilar com build.ps1)
 └── artigos/             ← PDFs dos artigos de referência
 ```
 
@@ -307,10 +307,10 @@ Já adicionado ao PATH do usuário. Em novo terminal, `pdflatex` funciona direta
 
 ### Arquivo principal
 
-`tese.tex` — `\documentclass[12pt,twoside]{book}`, `natbib` (apalike), `babel[brazil]`.
+`dissertacao.tex` — `\documentclass[12pt,twoside]{book}`, `natbib` (apalike), `babel[brazil]`.
 
 Capítulos incluídos: 1_introducao, 2_conceitos, 3_met, 4_resultados, 5_cronograma, 7_conclusoes.
-Capítulo 6 está comentado no `tese.tex`.
+Capítulo 6 está comentado no `dissertacao.tex`.
 
 ### Aviso `babel: Name 'brazil' is deprecated`
 

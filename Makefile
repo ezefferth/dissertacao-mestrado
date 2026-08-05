@@ -1,4 +1,4 @@
-ARTIGO = tese
+ARTIGO = dissertacao
 
 
 rt:

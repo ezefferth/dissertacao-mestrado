@@ -9,7 +9,7 @@ param(
     [switch]$clean
 )
 
-$ARTIGO = "tese"
+$ARTIGO = "dissertacao"
 $DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 Push-Location $DIR
 
