@@ -1,11 +1,11 @@
 \chapter{Metodologia}
 \label{chap:metodologia}
 
-O desenvolvimento deste trabalho foi organizado em quatro frentes complementares, integradas em um único fluxo de dados que vai da aquisição do biopotencial até a visualização clínica: (i) um dispositivo embarcado responsável pela captura, processamento e transmissão do sinal de \acs{ECG}; (ii) a infraestrutura de rede \textit{LoRaWAN}, composta por um \textit{gateway} e por um servidor de rede local; (iii) um serviço de ingestão que recebe os dados da rede e os persiste em nuvem; e (iv) um aplicativo móvel para acompanhamento dos pacientes em tempo real pelos profissionais de saúde.
+O desenvolvimento deste trabalho foi organizado em quatro frentes complementares, integradas em um único fluxo de dados que vai da aquisição do biopotencial até o monitoramento clínico: (i) um dispositivo embarcado responsável pela captura do sinal de \acs{ECG}, pelo seu processamento na borda e pela transmissão do resumo de cada segmento analisado; (ii) a infraestrutura de rede \textit{LoRaWAN}, composta por um \textit{gateway} e por um servidor de rede local; (iii) um serviço de ingestão que recebe os resumos da rede, classifica-os e os persiste em nuvem como eventos cardíacos; e (iv) um aplicativo móvel que apresenta esses eventos aos profissionais de saúde em tempo real, sinalizando como eventos de alerta aqueles de maior gravidade clínica.
 
 Diferentemente das abordagens que transmitem a forma de onda completa do \acs{ECG}, este trabalho adotou a estratégia de \textit{processamento na borda} (\textit{edge computing}): a detecção de eventos cardíacos foi realizada no próprio dispositivo embarcado, e apenas um resumo compacto de cada segmento analisado foi transmitido pela rede \textit{LoRaWAN}. Essa decisão, detalhada na Seção~\ref{sec:transmissaoLora}, contornou as restrições de \textit{duty cycle} e de taxa de dados inerentes ao protocolo, viabilizando o monitoramento contínuo em uma rede de longo alcance e baixo consumo.
 
-A Figura~\ref{fig:topologia} apresenta a arquitetura completa do sistema. O sinal foi captado por eletrodos conectados ao paciente e digitalizado pelo \acs{AFE} ADS1293; o microcontrolador XIAO ESP32-S3 aplicou filtragem digital, executou o algoritmo de detecção de arritmias e transmitiu o resumo de cada segmento via módulo \textit{LoRa} Wio-SX1262. O \textit{gateway} \textit{LoRaWAN} encaminhou os pacotes ao servidor de rede \textit{ChirpStack}, que os publicou em um \textit{broker} \acs{MQTT}. Um serviço de ingestão consumiu essas mensagens e gravou os eventos no banco de dados em nuvem (\textit{Firestore}), de onde o aplicativo móvel os leu em tempo real.
+A Figura~\ref{fig:topologia} apresenta a arquitetura completa do sistema. O sinal foi captado por eletrodos conectados ao paciente, digitalizado, processado e transmitido por um istema embarcado portátil, montado experimentalmente. O \textit{gateway} \textit{LoRaWAN} encaminhou os pacotes ao servidor de rede \textit{ChirpStack}, que os publicou em um \textit{broker} \acs{MQTT}. Um serviço de ingestão consumiu essas mensagens e gravou os eventos no banco de dados em nuvem (\textit{Firestore}), de onde o aplicativo móvel os leu em tempo real.
 
 \begin{figure}[ht]
     \centering
@@ -13,41 +13,47 @@ A Figura~\ref{fig:topologia} apresenta a arquitetura completa do sistema. O sina
     \begin{tikzpicture}[
         >={Stealth[round]},
         box/.style={draw, rounded corners, align=center, minimum height=1.05cm, minimum width=2.1cm, font=\footnotesize},
+        elet/.style={draw, line width=0.9pt, circle, minimum size=0.42cm, inner sep=0pt},
         lbl/.style={font=\scriptsize, align=center},
-        node distance=0.9cm and 0.95cm
+        node distance=0.9cm and 1.6cm
     ]
-        \node[box] (ecg)  {Eletrodos\\(paciente)};
-        \node[box, right=of ecg]  (mcu)  {XIAO ESP32-S3\\+ ADS1293};
-        \node[box, right=of mcu]  (lora) {Wio-SX1262\\(LoRaWAN)};
-        \node[box, right=of lora] (gw)   {\textit{Gateway} +\\ \textit{ChirpStack}};
-        \node[box, right=of gw]   (ing)  {Ingestor\\(\acs{MQTT})};
-        \node[box, right=of ing]  (fs)   {\textit{Firestore}\\(nuvem)};
+        % Eletrodos: três anéis empilhados verticalmente
+        \node[elet] (e1) {};
+        \node[elet, below=0.18cm of e1] (e2) {};
+        \node[elet, below=0.18cm of e2] (e3) {};
+        \foreach \n in {e1,e2,e3} { \fill (\n.center) circle (0.055); }
+        \node[lbl, below=0.20cm of e3] {Eletrodos\\\acs{ECG}};
+
+        \node[box, right=2.1cm of e2, minimum width=4.4cm, text width=4.2cm] (disp)
+             {Dispositivo de aquisição e\\processamento do \acs{ECG}\\(detecção na borda)};
+        \node[box, right=of disp] (gw)  {\textit{Gateway} +\\ \textit{ChirpStack}};
+        \node[box, right=of gw]   (ing) {Ingestor\\(\acs{MQTT})};
+        \node[box, right=of ing]  (fs)  {\textit{Firestore}\\(nuvem)};
         \node[box, below=1.0cm of fs] (app) {Aplicativo\\móvel};
 
-        \draw[->] (ecg)  -- (mcu);
-        \draw[->] (mcu)  -- (lora) node[midway, above, lbl]{\acs{SPI}};
-        \draw[->] (lora) -- (gw)   node[midway, above, lbl]{\textit{LoRa}};
-        \draw[->] (gw)   -- (ing)  node[midway, above, lbl]{\acs{MQTT}};
+        \draw[->] (e1.east) -- (disp.west);
+        \draw[->] (e2.east) -- (disp.west);
+        \draw[->] (e3.east) -- (disp.west);
+        \draw[->] (disp) -- (gw)  node[midway, above, lbl]{\textit{LoRaWAN}};
+        \draw[->] (gw)   -- (ing) node[midway, above, lbl]{\acs{MQTT}};
         \draw[->] (ing)  -- (fs);
-        \draw[<->] (fs)  -- (app)  node[midway, right, lbl]{\acs{SDK}};
-
-        \node[lbl, below=0.05cm of mcu, text width=2.3cm] {detecção\\na borda};
+        \draw[<->] (fs)  -- (app) node[midway, right, lbl]{\acs{SDK}};
     \end{tikzpicture}%
     }
-    \caption{Topologia geral do sistema de monitoramento, da aquisição do sinal de \acs{ECG} à visualização no aplicativo móvel. A detecção de eventos ocorre no dispositivo embarcado, e apenas o resumo de cada segmento trafega pela rede.}
+    \caption{Topologia geral do sistema de monitoramento, da aquisição do sinal de \acs{ECG} à visualização no aplicativo móvel. A detecção ocorre no dispositivo embarcado, e apenas o resumo de cada segmento trafega pela rede.}
     \label{fig:topologia}
 \end{figure}
 
 
-\section{Dispositivo de Aquisição e Transmissão do Sinal de ECG}
+\section{Dispositivo de Aquisição e Procesamento do Sinal de ECG}
 \label{sec:dispositivo}
 
-Para a aquisição e transmissão dos sinais de \acs{ECG} foram utilizados módulos comerciais de baixo custo, selecionados com o objetivo de obter um sistema compacto, confiável e energeticamente eficiente, adequado a aplicações de telemedicina e monitoramento remoto. A escolha dos componentes priorizou a alta resolução na aquisição do biopotencial, a capacidade de comunicação de longo alcance e a disponibilidade de recursos de processamento embarcado.
+Para a aquisição do ECG e transmissão dos eventos de alerta foram utilizados módulos comerciais de baixo custo, selecionados com o objetivo de obter um sistema compacto, confiável e energeticamente eficiente, adequado a aplicações de telemedicina e monitoramento remoto. A escolha dos componentes priorizou a alta resolução na aquisição do biopotencial, a capacidade de comunicação de longo alcance e a disponibilidade de recursos de processamento embarcado.
 
 \subsection{Seleção dos Componentes de Hardware}
 \label{sec:selecaoHardware}
 
-A definição do microcontrolador considerou capacidade de processamento, conectividade, consumo energético, dimensões e custo. Optou-se pelo módulo XIAO ESP32-S3, que reúne, em um encapsulamento de dimensões reduzidas (21~$\times$~17,5~mm), um processador de dois núcleos, suporte nativo a \textit{Wi-Fi} e \textit{Bluetooth}, controlador de carga de bateria de íons de lítio integrado e memória \textit{PSRAM} de 8~MB. Esse último recurso foi determinante para o projeto, pois permitiu armazenar em memória os segmentos de 30~s de sinal necessários ao algoritmo de detecção. A Tabela~\ref{tab:mcu} compara o módulo escolhido com o Arduino~Uno, plataforma recorrente em trabalhos correlatos.
+A definição do microcontrolador considerou capacidade de processamento, conectividade, consumo energético, dimensões e custo. Optou-se pelo módulo XIAO ESP32-S3, que reúne, em um encapsulamento de dimensões reduzidas (21~$\times$~17,5~mm), um processador de dois núcleos, suporte nativo a \textit{Wi-Fi} e \textit{Bluetooth}, controlador de recarga de bateria (íons de lítio) integrado e memória \textit{PSRAM} de 8~MB. Esse último recurso foi determinante para o projeto, pois permitiu armazenar em memória os segmentos de 30~s de sinal necessários ao algoritmo de detecção. A Tabela~\ref{tab:mcu} compara o módulo escolhido com o Arduino~Uno, plataforma recorrente em trabalhos correlatos.
 
 \begin{table}[h]
     \centering
@@ -60,12 +66,12 @@ A definição do microcontrolador considerou capacidade de processamento, conect
         \textbf{Conectividade} & \textit{Wi-Fi} + \textit{Bluetooth}/BLE & nenhuma nativa \\ \hline
         \textbf{Bateria} & controlador de carga integrado & externo \\ \hline
         \textbf{Dimensões} & 21 $\times$ 17,5 mm & 68,6 $\times$ 53,4 mm \\ \hline
-        \textbf{Preço aproximado} & US\$ 9,90 & US\$ 11,90 \\ \hline
+        \textbf{Preço aproximado \acs{FOB}} & USD 9,90 & USD 11,90 \\ \hline
     \end{tabular}
     \label{tab:mcu}
 \end{table}
 
-Para a aquisição do biopotencial, a revisão bibliográfica evidenciou que a maioria dos trabalhos emprega o módulo AD8232. Esse componente, contudo, apresenta limitações relevantes: não dispõe de conversor analógico-digital (A/D) integrado, exigindo o uso do \acs{ADC} interno do microcontrolador, cuja resolução efetiva (10--12 bits) e taxa de amostragem são limitadas; além disso, oferece uma única derivação \citep{AnalogDevices_AD8232}. Optou-se, portanto, pelo módulo CJMCU-1293, baseado no \acs{AFE} ADS1293, que integra três canais simultâneos, conversão de 24~bits e taxa de amostragem programável \citep{TexasInstruments_ADS1293}. A Tabela~\ref{tab:ads_vs_ad8232} sintetiza as vantagens do módulo adotado.
+Para a aquisição do sinal de ECG, a revisão bibliográfica evidenciou que a maioria dos trabalhos emprega o módulo AD8232. Esse componente, contudo, apresenta limitações relevantes: não dispõe de conversor analógico-digital (A/D) integrado, exigindo o uso do \acs{ADC} interno do microcontrolador, cuja resolução efetiva (10--12 bits) e taxa de amostragem são limitadas; além disso, oferece uma única derivação \citep{AnalogDevices_AD8232}. Optou-se, portanto, pelo módulo CJMCU-1293, baseado no \acs{AFE} ADS1293, que integra três canais simultâneos, conversão de 24~bits e taxa de amostragem programável \citep{TexasInstruments_ADS1293}. A Tabela~\ref{tab:ads_vs_ad8232} sintetiza as vantagens do módulo adotado.
 
 \begin{table}[h]
     \centering
@@ -83,12 +89,12 @@ Para a aquisição do biopotencial, a revisão bibliográfica evidenciou que a m
     \label{tab:ads_vs_ad8232}
 \end{table}
 
-A transmissão dos dados coube ao módulo \textit{LoRa} Wio-SX1262, escolhido pela comunicação de longo alcance e pelo baixo consumo característicos da tecnologia. A alimentação do conjunto foi provida por uma bateria de íons de lítio de 3,7~V. Ressalta-se que o ADS1293 foi alimentado com 3,3~V, respeitando o limite máximo de tensão analógica (\textit{AVDD}) de 3,6~V do componente.
+A transmissão dos dados coube ao módulo \textit{LoRa} Wio-SX1262, escolhido pela comunicação de longo alcance e pelo baixo consumo característicos da tecnologia. A alimentação do conjunto foi provida por uma bateria de íons de lítio de 3,7~V. 
 
 \subsection{Arquitetura e Funcionamento do Dispositivo}
 \label{sec:arqDispositivo}
 
-O ADS1293 registrou os sinais bioelétricos do coração e os entregou já digitalizados ao microcontrolador por meio de um barramento \acs{SPI} (\textit{Serial Peripheral Interface}). A Tabela~\ref{tab:pinagem} apresenta a pinagem utilizada na interligação entre o ADS1293 e o XIAO ESP32-S3. O sinal de interrupção \acs{DRDY} (\textit{Data Ready}) foi empregado para sinalizar, a cada nova amostra disponível, a leitura pelo microcontrolador, garantindo a aquisição em taxa constante.
+O ADS1293 registra os sinais bioelétricos do coração e os transfere já digitalizados ao microcontrolador por meio de um barramento \acs{SPI} (\textit{Serial Peripheral Interface}). A Tabela~\ref{tab:pinagem} apresenta a pinagem utilizada na interligação entre o ADS1293 e o XIAO ESP32-S3. O sinal de interrupção \acs{DRDY} (\textit{Data Ready}) foi empregado para sinalizar, a cada nova amostra disponível, a leitura pelo microcontrolador, garantindo a aquisição em taxa constante.
 
 \begin{table}[h]
     \centering
@@ -104,18 +110,18 @@ O ADS1293 registrou os sinais bioelétricos do coração e os entregou já digit
     \label{tab:pinagem}
 \end{table}
 
-A Figura~\ref{fig:conexoes} sintetiza a interligação completa entre os módulos. A comunicação com o ADS1293 emprega sete conexões: cinco de natureza digital e duas de alimentação. As linhas digitais compreendem o barramento \acs{SPI} propriamente dito — \textit{clock} (SCK), dados do microcontrolador para o \acs{AFE} (MOSI, ligado ao pino SDI do módulo), dados do \acs{AFE} para o microcontrolador (MISO, ligado ao pino SDO) e seleção de dispositivo (CS, ligado ao pino CSB) — acrescidas do sinal de interrupção \acs{DRDY} (pino DRDYB), que sinaliza cada nova amostra disponível. As duas conexões restantes são a alimentação de 3,3~V e o terra comum.
+A Figura~\ref{fig:conexoes} mostra a interligação completa entre os módulos. A comunicação com o ADS1293 emprega sete conexões: cinco de natureza digital e duas de alimentação. As linhas digitais compreendem o barramento \acs{SPI} propriamente dito — \textit{clock} (SCK), dados do microcontrolador para o \acs{AFE} (MOSI, ligado ao pino SDI do módulo), dados do \acs{AFE} para o microcontrolador (MISO, ligado ao pino SDO) e seleção de dispositivo (CS, ligado ao pino CSB) — acrescidas do sinal de interrupção \acs{DRDY} (pino DRDYB), que sinaliza cada nova amostra disponível. As duas conexões restantes são a alimentação de 3,3~V e o GND.
 
-Quanto à energia, o conjunto é alimentado por uma bateria de íons de lítio de 3,7~V conectada diretamente aos terminais de bateria (BAT) do XIAO ESP32-S3; o regulador interno do microcontrolador disponibiliza os 3,3~V que alimentam o ADS1293, respeitando o limite de tensão analógica (\textit{AVDD}) de 3,6~V do componente. A porta USB-C destina-se exclusivamente à recarga da bateria, não alimentando o circuito durante a operação. O módulo \textit{LoRa} Wio-SX1262, por sua vez, ocupa um barramento \acs{SPI} dedicado, com pinos internos distintos, o que elimina conflito de comunicação com o \acs{AFE}.
+Quanto à energia, o conjunto é alimentado por uma bateria de íons de lítio de 3,7~V, modelo 18650 (C=650mm, D=180mm) conectada diretamente aos terminais de bateria (BAT) do XIAO ESP32-S3; o regulador interno do microcontrolador disponibiliza os 3,3~V que alimentam o ADS1293, respeitando o limite de tensão analógica (\textit{AVDD}) de 3,6~V do componente. A porta USB-C destina-se exclusivamente à recarga da bateria, não alimentando o circuito durante a operação. O módulo \textit{LoRa} Wio-SX1262, por sua vez, ocupa um barramento \acs{SPI} dedicado, com pinos internos distintos, o que elimina conflito de comunicação com o \acs{AFE}.
 
 \begin{figure}[htb]
 \centering
 \includegraphics[width=0.95\textwidth]{assets/diagrama_conexoes.pdf}
-\caption{Diagrama de conexões do protótipo: interface \acs{SPI} e interrupção entre o \acs{AFE} CJMCU-1293 (ADS1293) e o XIAO ESP32-S3, alimentação a partir da bateria de íons de lítio e recarga por USB-C. As cores dos condutores são ilustrativas e a ordem dos terminais é esquemática.}
+\caption{Diagrama de conexões do protótipo: interface \acs{SPI} e interrupção entre o \acs{AFE} CJMCU-1293 (ADS1293) e o XIAO ESP32-S3, alimentação a partir da bateria de íons de lítio e recarga por USB-C. As cores dos condutores são ilustrativas.}
 \label{fig:conexoes}
 \end{figure}
 
-A aquisição foi realizada segundo o triângulo de \textit{Einthoven}, obtendo-se três derivações a partir dos eletrodos de membros. As derivações I e II foram medidas diretamente pelos canais 1 e 2 do ADS1293, e a derivação III foi calculada por meio da lei de \textit{Einthoven}, conforme as Equações~\ref{eq:leadI} a~\ref{eq:leadIII}:
+A aquisição foi realizada segundo o triângulo de \textit{Einthoven}, obtendo-se três derivações a partir dos 3 eletrodos fixados no tórax. As derivações I e II foram medidas diretamente pelos canais 1 e 2 do ADS1293, e a derivação III foi calculada por meio da lei de \textit{Einthoven}, conforme as Equações~\ref{eq:leadI} a~\ref{eq:leadIII}:
 
 \begin{align}
     \text{Derivação I}   &= \text{LA} - \text{RA} \label{eq:leadI} \\
@@ -132,23 +138,11 @@ A aquisição foi realizada segundo o triângulo de \textit{Einthoven}, obtendo-
     \label{fig:diagrama_ecg}
 \end{figure}
 
-\subsection{Módulo Microcontrolador XIAO ESP32-S3}
-\label{sec:xiao}
-
-O módulo XIAO ESP32-S3 baseia-se em um microcontrolador de arquitetura \textit{Xtensa}\textsuperscript{\textregistered} \mbox{dual-core} de 32 bits (LX7), voltado a aplicações de \acs{IoT}, computação de borda e dispositivos embarcados. Suas principais características são:
-
-\begin{itemize}
-    \item \textbf{Processador}: \mbox{dual-core} \textit{Xtensa} LX7, com frequência de até 240 MHz.
-    \item \textbf{Memória}: 512 KB de \textit{SRAM}, 384 KB de \textit{ROM} e 8 MB de \textit{PSRAM}, esta última empregada para armazenar os segmentos de \acs{ECG} processados.
-    \item \textbf{Conectividade}: \textit{Wi-Fi} 2,4 GHz, \textit{Bluetooth} 5.0 e \textit{BLE Mesh}.
-    \item \textbf{Periféricos}: \acs{ADC} de 12 bits, além de interfaces \acs{SPI}, \textit{I\textsuperscript{2}C} e \textit{UART}, utilizadas para a conexão com o \acs{AFE} de \acs{ECG} e o módulo \textit{LoRa}.
-    \item \textbf{Gerenciamento de energia}: controlador de carga de bateria integrado e modo \textit{deep sleep} com consumo inferior a 8~µA.
-\end{itemize}
 
 \subsection{Módulo de Comunicação Wio-SX1262}
 \label{sec:sx1262}
 
-O Wio-SX1262 é um módulo \textit{LoRa} baseado no transceptor \textit{Semtech} SX1262, projetado para transmissões de longo alcance e baixo consumo. Suas principais características são:
+O Wio-SX1262 é um módulo \textit{LoRa} baseado no transceptor \textit{Semtech} SX1262, projetado para transmissões de longo alcance e baixo consumo. Suas principais características, conforme o fabricante \citep{WioSX1262Datasheet}, são:
 
 \begin{itemize}
     \item \textbf{Consumo em repouso}: 1,62 µA em modo \textit{sleep}.
@@ -175,77 +169,46 @@ O CJMCU-1293 é um módulo de desenvolvimento que integra o \acs{AFE} (\textit{A
 
 A configuração do ADS1293 foi realizada para operação em três derivações (\textit{3-Lead}), com a detecção de modo comum e o amplificador RLD habilitados, condições necessárias à obtenção de um sinal limpo durante a movimentação do paciente.
 
-Em uma aplicação convencional, o amplificador RLD requer um quarto eletrodo, posicionado na perna direita do paciente, para o qual o sinal de contrarreação de modo comum é drenado. Com o objetivo de reduzir o número de cabos e simplificar a montagem, optou-se por dispensar esse eletrodo dedicado e adotar uma topologia de \textit{driven-leg} com apenas três eletrodos, na qual as funções de detecção e de contrarreação do modo comum são atribuídas a eletrodos distintos.
+Em uma aplicação convencional, o amplificador RLD requer um quarto eletrodo, posicionado na perna direita do paciente, para o qual o sinal de contrarreação de modo comum é aplicado. Com o objetivo de reduzir o número de cabos e simplificar a montagem, optou-se por dispensar esse eletrodo dedicado e adotar uma topologia de \textit{driven-leg} com apenas três eletrodos, na qual as funções de detecção e de contrarreação do modo comum são atribuídas a eletrodos distintos.
 
-A detecção de modo comum, realizada pelo \textit{Common-Mode Detector} do ADS1293, calcula a média das tensões dos pinos de entrada habilitados no registrador \texttt{CMDET\_EN} \citep{TexasInstruments_ADS1293}. Habilitaram-se apenas os pinos IN1 e IN3 (\texttt{CMDET\_EN = 0x05}), correspondentes aos eletrodos do braço direito (RA) e da perna esquerda (LL), deixando o eletrodo do braço esquerdo (LA) livre para receber a contrarreação. O roteamento da saída do RLD, por sua vez, é definido pelos três bits menos significativos (campo \textit{SELRLD}) do registrador \texttt{RLD\_CN}: enquanto o valor padrão da biblioteca de controle (\texttt{SELRLD = 100}) direciona a saída ao pino IN4 (eletrodo de perna direita), o valor adotado neste trabalho (\texttt{SELRLD = 010}) a direciona ao pino IN2, associado ao eletrodo LA. Dessa forma, a média de modo comum é obtida de RA e LL e reinjetada por LA, mantendo-se a separação entre os eletrodos de detecção e de contrarreação característica da topologia clássica de \textit{driven-leg} e obtendo-se a atenuação do ruído de modo comum de 60~Hz com apenas três eletrodos.
+A detecção de modo comum, realizada pelo \textit{Common-Mode Detector} do ADS1293, calcula a média das tensões dos pinos de entrada habilitados no registrador \texttt{CMDET\_EN} \citep{TexasInstruments_ADS1293}. Habilitaram-se apenas os pinos IN1 e IN3 (\texttt{CMDET\_EN = 0x05}), correspondentes aos eletrodos do braço direito (RA) e da perna esquerda (LL), deixando o eletrodo do braço esquerdo (LA) livre para receber a contrarreação. O roteamento da saída do RLD, por sua vez, é definido pelos três bits menos significativos (campo \textit{SELRLD}) do registrador \texttt{RLD\_CN}: enquanto o valor padrão da biblioteca de controle (\texttt{SELRLD = 100}) direciona a saída ao pino IN4 (eletrodo de perna direita), o valor adotado neste trabalho (\texttt{SELRLD = 010}) a direciona ao pino IN2, associado ao eletrodo LA. Dessa forma, a média de modo comum é obtida de RA e LL e reinjetada por LA, mantendo-se a separação entre os eletrodos de detecção e de contrarreação característica da topologia clássica de \textit{driven-leg} e obtendo-se a atenuação do ruído de modo comum de 60~Hz com apenas três eletrodos. A taxa de conversão foi definida pelos registradores de decimação \texttt{R2} e \texttt{R3}, programados por meio da configuração \texttt{SPS\_256} da biblioteca de controle, o que resulta na taxa efetiva de 640 amostras por segundo por canal --- valor verificado experimentalmente e adotado em todo o processamento subsequente.
 
 
 \section{Firmware Embarcado}
 \label{sec:firmware}
 
-O \textit{firmware} do dispositivo foi desenvolvido em C++ sobre a plataforma \textit{Arduino}, e estruturado em torno de um laço orientado a interrupção: a cada borda do sinal \acs{DRDY}, uma amostra das três derivações foi lida do ADS1293, condicionada por filtragem digital e acumulada em um \textit{buffer}. Ao completar um segmento de 30~s, o algoritmo de detecção de arritmias foi executado, o resultado foi registrado em memória não volátil e, então, transmitido pela rede \textit{LoRaWAN}.
+O \textit{firmware} do dispositivo foi desenvolvido em C++ sobre a plataforma \textit{Arduino}, e estruturado em torno de um laço orientado a interrupção: a cada borda do sinal \acs{DRDY}, uma amostra das três derivações foi lida do ADS1293 acumulada em um \textit{buffer}. Ao completar um segmento de 30~s, o algoritmo de detecção de arritmias foi executado, o resultado foi registrado em memória não volátil e, então, transmitido pela rede \textit{LoRaWAN}.
 
 \subsection{Aquisição e Condicionamento do Sinal}
 \label{sec:condicionamento}
 
-As amostras brutas, fornecidas pelo conversor de 24 bits, foram convertidas para a escala de tensão segundo a relação $v = (raw / 2^{23}) \cdot V_{ref}$. Em seguida, cada derivação foi submetida a uma cascata de dois filtros digitais de resposta ao impulso infinita (\acs{IIR}): um filtro passa-baixas, com frequência de corte de 40 Hz, para atenuar o ruído muscular e a interferência da rede elétrica; e um filtro passa-altas, com frequência de corte de 0,5 Hz, para remover o desvio de linha de base (\textit{baseline wander}) e a componente contínua de \textit{offset} dos eletrodos. Os coeficientes dos filtros foram calculados para a taxa de amostragem efetiva do sistema, determinada experimentalmente conforme descrito no Capítulo~\ref{chap:resultados}.
+As amostras brutas, fornecidas pelo conversor de 24 bits, foram convertidas para a escala de tensão segundo a Equação~13 do manual do componente \citep{TexasInstruments_ADS1293}, $v = \left(raw/\mathrm{ADC_{MAX}} - 1/2\right)\cdot 2V_{ref}/G$, em que $G = 3{,}5$ é o ganho do amplificador de instrumentação, $V_{ref} = 2{,}4$~V é a referência interna e $\mathrm{ADC_{MAX}}$ é o fundo de escala do conversor. Cabe observar que esse fundo de escala não corresponde à excursão total de 24 bits: ele é determinado pelas razões de decimação programadas em \texttt{R2} e \texttt{R3}, valendo $\mathrm{ADC_{MAX}} = \mathtt{0xC35000}$ na configuração adotada, e a saída é codificada em binário com \textit{offset}, de modo que a meia escala corresponde a 0~V diferencial. Em seguida, cada derivação foi submetida a uma cascata de dois filtros digitais de resposta ao impulso infinita (\acs{IIR}): um filtro passa-baixas, com frequência de corte de 40 Hz, para atenuar o ruído muscular e a interferência da rede elétrica; e um filtro passa-altas, com frequência de corte de 0,5 Hz, para remover o desvio de linha de base (\textit{baseline wander}) e a componente contínua de \textit{offset} dos eletrodos. Ambos os filtros são de primeira ordem: o passa-baixas na forma de média móvel exponencial e o passa-altas na forma canônica de um polo, com coeficientes $\alpha \approx 0{,}3247$ e $\alpha \approx 0{,}9951$, respectivamente. Optou-se pela estrutura \acs{IIR}, em detrimento de um filtro \acs{FIR} de fase linear, pelo custo computacional: um \acs{FIR} equivalente, projetado por janelamento de \textit{Hamming}, exigiria da ordem de $3{,}3\,f_s/\Delta f$ coeficientes --- algumas centenas para o corte de 40~Hz e alguns milhares para o de 0,5~Hz ---, contra uma única multiplicação-acumulação e um estado por amostra na estrutura adotada, em um microcontrolador que executa concomitantemente a aquisição, o armazenamento do segmento e a pilha \textit{LoRaWAN}. A distorção de fase decorrente concentra-se abaixo de 2~Hz e afeta sobretudo o segmento ST e a onda T, e não a localização temporal do complexo QRS, da qual dependem as grandezas efetivamente medidas pelo sistema; ademais, o realce do QRS no algoritmo de detecção (Seção~\ref{sec:deteccaoBorda}) é realizado por um filtro janela-sinc, de fase linear. Os coeficientes foram calculados para a taxa de amostragem do sistema, de 640~SPS, decorrente das razões de decimação programadas no conversor (Equação~\ref{eq:odr}) e suficiente, com ampla margem, para a banda de interesse do sinal, limitada a 40~Hz pelo próprio passa-baixas. Cabe registrar que essa taxa não corresponde ao valor nominal sugerido pela nomenclatura da configuração empregada na biblioteca de controle, discrepância identificada durante a caracterização do componente e detalhada no Capítulo~\ref{chap:resultados}.
 
 A saída de depuração pela interface serial foi desacoplada da aquisição, de modo a preservar a integridade temporal do sinal processado. Como a impressão das três derivações a cada amostra, na taxa efetiva de 640 SPS, excede a capacidade do enlace serial, a operação de escrita poderia bloquear o laço principal e ocasionar a perda de interrupções \acs{DRDY}, introduzindo descontinuidades no \textit{buffer} e distorcendo os intervalos R-R. Para evitá-lo, a saída de depuração foi decimada — apenas uma a cada quatro amostras é enviada à serial —, enquanto o \textit{buffer} de detecção continuou a receber todas as amostras. Preservou-se, assim, a visualização em tempo real sem comprometer o sinal efetivamente submetido à detecção.
 
 \subsection{Detecção de Eventos na Borda}
 \label{sec:deteccaoBorda}
 
-O núcleo do processamento embarcado consistiu em um algoritmo de detecção de complexos QRS e de classificação de arritmias, aplicado à derivação II de cada segmento de 30~s. \textbf{Esse algoritmo não é uma contribuição deste trabalho}: trata-se do \textit{firmware} de detecção desenvolvido por \citeay{moraesFirmwareECG}, descrito na Seção~\ref{sec:deteccaoEmbarcada}, cujo código-fonte foi cedido pelos autores e aqui reutilizado. A opção por reaproveitá-lo, em vez de reimplementar um detector, decorre de ele já haver sido validado sobre a base MIT-BIH e sobre sinais simulados, alcançando 99,92\% de acerto na detecção dos picos R e 99,67\% na identificação das anomalias, e de o escopo desta dissertação recair sobre a aquisição, o processamento na borda e a \textbf{transmissão} do \acs{ECG} em rede \textit{LoRaWAN} --- não sobre o projeto de um novo algoritmo de detecção.
+O núcleo do processamento embarcado consistiu em um algoritmo de detecção de complexos QRS e de classificação de arritmias, aplicado à derivação II de cada segmento de 30~s. Esse algoritmo não é uma contribuição deste trabalho: trata-se do \textit{firmware} de detecção desenvolvido por \citeay{moraesFirmwareECG}, descrito na Seção~\ref{sec:deteccaoEmbarcada}, cujo código-fonte foi cedido pelos autores e aqui reutilizado. 
 
-A adaptação realizada limitou-se ao necessário para a execução na plataforma adotada: ajuste da taxa de amostragem (de 500 para 640~SPS, com a consequente reescrita dos limiares expressos em número de amostras para unidades de tempo), correção de acessos indevidos a vetores e de uma variável não inicializada, e integração ao \textit{buffer} de aquisição e ao \textit{payload} de transmissão. As regras de decisão, os limiares clínicos e a estrutura do método foram preservados, de modo a manter a comparabilidade com os resultados originais.
+A adaptação realizada limitou-se ao necessário para a execução na plataforma adotada: ajuste da taxa de amostragem (de 500 para 640~SPS, com a consequente reescrita dos limiares expressos em número de amostras por unidade de tempo), e integração ao \textit{buffer} de aquisição e ao \textit{payload} de transmissão. As regras de decisão dos limiares clínicos passaram por ajustes sutis, de modo a manter a comparabilidade com os resultados originais.
 
 O algoritmo, baseado na análise da derivada do sinal --- método da operação de diferenças (DOM, \textit{Difference Operation Method}) ---, seguiu as etapas:
 
 \begin{enumerate}
     \item \textbf{Diferenciação}: cálculo da diferença discreta entre amostras consecutivas, realçando as transições rápidas associadas ao complexo QRS.
-    \item \textbf{Filtragem}: convolução do sinal diferenciado com um filtro passa-baixas do tipo janela-sinc (janela de \textit{Hamming}), suavizando as componentes de alta frequência remanescentes.
+    \item \textbf{Filtragem}: filtragem do sinal diferenciado com um filtro passa-baixas do tipo janela-sinc, suavizando as componentes de alta frequência remanescentes.
     \item \textbf{Limiarização adaptativa}: cálculo de limiares positivo e negativo proporcionais à média das amplitudes de cada polaridade, separando os extremos significativos do ruído de fundo.
     \item \textbf{Pareamento e detecção de picos}: identificação dos pares de extremos (descida e subida) correspondentes a cada complexo QRS e localização dos picos R.
-    \item \textbf{Cálculo dos intervalos R-R}: a partir das posições dos picos R, foram obtidos os intervalos R-R e suas estatísticas (média, desvio padrão e diferenças sucessivas), base para a classificação.
+    \item \textbf{Cálculo dos intervalos R-R}: a partir das posições dos picos R, foram obtidos os intervalos R-R e suas estatísticas (média, desvio padrão e diferenças sucessivas), base para a classificação. Essas estatísticas correspondem aos índices de variabilidade da frequência cardíaca no domínio do tempo padronizados por \citeay{hrvTaskForce1996}.
 \end{enumerate}
 
-O Algoritmo~\ref{alg:rpeak} formaliza essa sequência de detecção dos picos R.
 
-\begin{algorithm}[ht]
-\caption{Detecção de picos R no segmento de ECG, conforme \citet{moraesFirmwareECG}}
-\label{alg:rpeak}
-\KwIn{Segmento da derivação II $x[0..N-1]$; frequência de amostragem $f_s$}
-\KwOut{Conjunto de picos R, $\mathcal{R}$}
-$w \leftarrow \lfloor 0{,}14 \cdot f_s \rfloor$\tcp*{janela $\approx$ largura máx.\ do QRS}
-\For{$n \leftarrow 1$ \KwTo $N-1$}{
-  $d[n] \leftarrow x[n]-x[n-1]$\tcp*{diferenciação}
-}
-$\hat{d} \leftarrow \text{FiltroPassaBaixas}(d)$\tcp*{janela-sinc de Hamming}
-$\mathrm{MV_p} \leftarrow$ média de $\{\hat{d}[i] : \hat{d}[i]>0\}$\;
-$\mathrm{MV_n} \leftarrow$ média de $\{\hat{d}[i] : \hat{d}[i]<0\}$\;
-$T_1 \leftarrow 4\,\mathrm{MV_p}$\quad;\quad $T_2 \leftarrow 4\,\mathrm{MV_n}$\tcp*{limiares adaptativos}
-\ForEach{amostra $\hat{d}[i]$}{
-  \lIf{$0<\hat{d}[i]<T_1$ \textbf{ou} $T_2<\hat{d}[i]<0$}{$\hat{d}[i] \leftarrow 0$}
-}
-$E \leftarrow \emptyset$\;
-\ForEach{janela de tamanho $w$}{
-  insere em $E$ o máximo de $\hat{d}^{+}$ e o mínimo de $\hat{d}^{-}$ da janela\;
-}
-ordena $E$ por índice\;
-$P \leftarrow$ pares consecutivos de $E$, de polaridade oposta e com $\Delta t < w$\;
-$\mathcal{R} \leftarrow \emptyset$\;
-\ForEach{par $(e_1,e_2) \in P$}{
-  $r \leftarrow$ extremo de $x$ no intervalo $[e_1,e_2]$\tcp*{pico R no sinal original}
-  $\mathcal{R} \leftarrow \mathcal{R} \cup \{r\}$\;
-}
-\Return $\mathcal{R}$\;
-\end{algorithm}
+Com base nas estatísticas dos intervalos R-R, o algoritmo classifica o segmento em seis categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial, parada sinoatrial e anomalia não caracterizada. As cinco primeiras provêm do trabalho de \cite{moraesFirmwareECG}; a sexta foi acrescentada neste trabalho e é descrita adiante. A taquicardia é sinalizada quando o intervalo R-R médio é inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm).
 
-Com base nas estatísticas dos intervalos R-R, o algoritmo classificou o segmento em seis categorias de anormalidade: taquicardia, bradicardia, arritmia sinusal, bloqueio sinoatrial, parada sinoatrial e anomalia não caracterizada. As cinco primeiras provêm do algoritmo reaproveitado; a sexta foi acrescentada neste trabalho e é descrita adiante. A taquicardia foi sinalizada quando o intervalo R-R médio foi inferior a 600 ms (frequência cardíaca acima de 100 bpm) e a bradicardia quando superior a 1000 ms (abaixo de 60 bpm).
+A arritmia sinusal é sinalizada quando a diferença entre dois intervalos R-R consecutivos situa-se entre 120 ms e 80\,\% do intervalo R-R de base. O limite superior era utilizado no algoritmo original original e foi acrescentado por uma razão específica: a pausa característica de um bloqueio sinoatrial produz, ela própria, uma diferença entre intervalos sucessivos muito maior que 120 ms --- um bloqueio de um batimento gera diferença igual a um intervalo R-R inteiro ---, de modo que o critério de arritmia era atendido pelo bloqueio também, gerando classificação dupla. Sem o teto, era necessário suprimir a detecção de arritmia sempre que houvesse detecção de bloqueio também. Intervalos que escapam a essa faixa e à do critério de bloqueio sinoatrial, descrito a seguir, são tratados pela sexta categoria de anormalidade, introduzida na Seção~\ref{sec:resNaoCaracterizada} para cobrir exatamente essa lacuna (Seção~\ref{sec:resZonaMorta}).
 
-A arritmia sinusal foi sinalizada quando a diferença entre dois intervalos R-R consecutivos situou-se entre 120 ms e 80\,\% do intervalo R-R de base. O limite superior não constava da formulação original e foi acrescentado por uma razão específica: a pausa característica de um bloqueio produz, ela própria, uma diferença entre intervalos sucessivos muito maior que 120 ms --- um bloqueio de um batimento gera diferença igual a um intervalo R-R inteiro ---, de modo que o critério de arritmia disparava em todo segmento contendo pausa. Sem o teto, era necessário suprimir a arritmia à força sempre que houvesse pausa; com ele, o contador passa a medir exclusivamente a variabilidade batimento a batimento, e torna-se utilizável como medida independente da regularidade do ritmo. O valor de 80\,\% decorre de medida: um teto de duas vezes o intervalo R-R, proposto inicialmente, não exclui a pausa de dois ciclos, cuja diferença vale um intervalo e permanece abaixo do limite.
-
-As duas classes de pausa foram decididas em relação ao ritmo de base do próprio segmento, e não por duração absoluta, em conformidade com sua definição clínica: no bloqueio sinoatrial de segundo grau o nó sinusal despolariza mas o impulso é barrado antes de atingir o átrio, de modo que a pausa corresponde a um múltiplo inteiro do intervalo entre batimentos — dois ou três ciclos —, ao passo que na parada sinusal o nó deixa de disparar e a pausa não guarda proporção inteira com o ritmo de base, excedendo três ciclos. Adotou-se como ritmo de base a \textbf{mediana} dos intervalos R-R do segmento, e não a média: por ser uma estatística de ordem, a mediana não é deslocada pelas próprias pausas que se pretende medir, ao passo que a média o seria, encolhendo a razão e ocultando a pausa. Como a igualdade exata com o múltiplo é inatingível na presença da variabilidade fisiológica e da quantização temporal imposta pela taxa de amostragem, a comparação admitiu uma tolerância relativa de 5\,\%. Não se impôs qualquer piso de duração absoluta: a uma frequência cardíaca elevada, uma pausa de dois ciclos é breve em termos absolutos, mas continua sendo, por definição, um bloqueio.
+As duas classes de pausa foram decididas em relação ao ritmo de base do próprio segmento, e não por duração absoluta, em conformidade com sua definição clínica: no bloqueio sinoatrial de segundo grau o nó sinusal despolariza mas o impulso é barrado antes de atingir o átrio, de modo que a pausa corresponde a um múltiplo inteiro do intervalo entre batimentos — dois ou três intervalos R-R —, ao passo que na parada sinusal o nó deixa de disparar e a pausa não guarda proporção inteira com o ritmo de base, excedendo três ciclos. Adotou-se como ritmo de base a mediana dos intervalos R-R do segmento, e não a média: por ser uma estatística de ordem, a mediana não é deslocada pelas próprias pausas que se pretende medir, ao passo que a média seria puxada para cima por elas, reduzindo a proporção entre o intervalo pausado e o ritmo de base e ocultando a própria pausa que o critério deveria capturar. Como a igualdade exata com o múltiplo é inatingível na presença da variabilidade fisiológica e da quantização temporal imposta pela taxa de amostragem, a comparação admitiu uma tolerância relativa de 5\,\%. Não se impôs qualquer piso de duração absoluta: a uma frequência cardíaca elevada, uma pausa de dois ciclos é breve em termos absolutos, mas continua sendo, por definição, um bloqueio.
 
 A sexta categoria --- \textbf{anomalia não caracterizada} --- foi acrescentada para cobrir os segmentos em que há evidência objetiva de anormalidade no ritmo que não corresponde a nenhuma das cinco condições nomeadas. Sinaliza-se essa categoria quando um intervalo de pelo menos uma vez e meia o R-R de base não satisfaz nenhum dos critérios anteriores, o que ocorre em quatro situações: quando a duração da pausa recai entre as faixas cobertas pelos critérios de bloqueio e de parada; quando a pausa é um múltiplo inteiro superior a três ciclos, caso em que não é parada por definição e excede o alcance do critério de bloqueio; quando há uma pausa isolada de dois ou três ciclos, que não satisfaz a exigência do algoritmo original de mais de uma ocorrência por segmento; e quando o ritmo de base é irregular demais para sustentar diagnóstico de pausa, situação em que as pausas contabilizadas são reatribuídas a esta categoria. A irregularidade é aferida pelo contador de arritmia sinusal, agora desacoplado das pausas pelo teto descrito acima, adotando-se como limite o valor de cinco ocorrências por segmento.
 
@@ -320,6 +283,9 @@ Um aspecto prático da ativação por \acs{OTAA} exigiu tratamento específico. 
     \end{tabular}
     \label{tab:payload}
 \end{table}
+
+O campo de desvio padrão do R-R corresponde ao índice \acs{SDNN} --- desvio padrão dos intervalos entre batimentos --- tal como definido por \citeay{hrvTaskForce1996}, calculado, neste trabalho, sobre a janela de 30~s de cada segmento. Cabe registrar que essa janela é inferior aos 5~min mínimos preconizados naquele documento para os registros curtos, e que os batimentos ectópicos não são excluídos da série antes do cálculo; o valor transmitido presta-se, portanto, à caracterização da dispersão dos intervalos dentro do segmento, e não à comparação direta com os índices de variabilidade reportados na literatura clínica.
+
 
 O campo de \textit{flags} codificou, em uma máscara de bits, as seis categorias de anormalidade, permitindo o registro de detecções simultâneas em um mesmo segmento. O identificador sequencial do segmento possibilitou ao servidor detectar eventuais perdas de pacotes. A aquisição do \acs{ECG} foi mantida independentemente do sucesso da conexão \textit{LoRaWAN}: na ausência de rede, os dados permaneceram armazenados localmente até a recuperação da comunicação.
 
@@ -397,7 +363,7 @@ A integração entre a infraestrutura \textit{LoRaWAN} e a aplicação foi reali
 \subsection{Ingestor MQTT}
 \label{sec:ingestor}
 
-O ingestor inscreveu-se no \textit{broker} \acs{MQTT} do \textit{ChirpStack} e, a cada mensagem de \textit{uplink}, executou: a identificação do dispositivo de origem pelo seu \textit{DevEUI}; a verificação do paciente a ele vinculado; a determinação do tipo de evento de maior prioridade clínica a partir da máscara de \textit{flags}; e a gravação do evento cardíaco no banco de dados. Quando o evento foi classificado como crítico, o ingestor registrou também notificações destinadas aos profissionais de saúde ativos da respectiva instituição. Para conter o custo de operação da plataforma em nuvem, o serviço foi parametrizado de modo a permitir, opcionalmente, o descarte dos segmentos normais e a restrição das notificações apenas aos eventos críticos.
+O ingestor inscreveu-se no \textit{broker} \acs{MQTT} do \textit{ChirpStack} e, a cada mensagem de \textit{uplink}, executou: a identificação do dispositivo de origem pelo seu \textit{DevEUI}; a verificação do paciente a ele vinculado; a determinação do tipo de evento de maior prioridade clínica a partir da máscara de \textit{flags}; e a gravação do evento cardíaco no banco de dados. Quando o evento foi classificado como crítico, o ingestor registrou também os eventos de alerta destinados aos profissionais de saúde ativos da respectiva instituição. Para conter o custo de operação da plataforma em nuvem, o serviço foi parametrizado de modo a permitir, opcionalmente, o descarte dos segmentos normais e a restrição das notificações apenas aos eventos críticos.
 
 \subsection{Banco de Dados e Modelo de Dados}
 \label{sec:bancoDados}
