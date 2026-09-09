@@ -18,6 +18,7 @@
     \acro{SPI}[SPI]{Serial Peripheral Interface}
     \acro{DRDY}[DRDY]{Data Ready}
     \acro{IIR}[IIR]{Infinite Impulse Response}
+    \acro{FIR}[FIR]{Finite Impulse Response}
     \acro{IPEX}[IPEX]{Conector coaxial miniatura para antena}
     \acro{SBC}[SBC]{Single Board Computer}
     \acro{GPIO}[GPIO]{General Purpose Input/Output}
@@ -28,6 +29,8 @@
     \acro{REST}[REST]{Representational State Transfer}
     \acro{UFMS}[UFMS]{Universidade Federal de Mato Grosso do Sul}
     \acro{CMRR}[CMRR]{Common-Mode Rejection Ratio}
+    \acro{SDNN}[SDNN]{Standard Deviation of NN intervals}
+    \acro{FOB}[FOB]{Free On Board (sem frete e sem imposto)}
     % \acro{}[]{}
     % \acro{}[]{}
 
@@ -40,17 +43,15 @@
 \begin{description}
   \item[Payload] é a parte útil de um pacote de dados transmitido em uma rede, contendo a informação real da aplicação.
   \item[Duty Cycle] é a porcentagem de tempo em que um dispositivo transmissor pode ocupar o canal de comunicação dentro de um determinado intervalo. No caso do \textit{LoRaWAN}, há limites legais que impedem transmissões contínuas, especialmente em bandas de frequência não licenciadas.
-  \item[Gateway] é um dispositivo intermediário responsável por receber dados dos nós sensores e encaminhá-los para a internet ou servidores locais.
   \item[Spreading Factor (SF)] é um parâmetro do LoRa que define a duração do símbolo transmitido e impacta diretamente o alcance e a taxa de transmissão.
-  \item [ChiprStack] é um servidor de rede LoRaWAN de código aberto que permite a comunicação entre dispositivos e aplicativos LoRaWAN.
+  \item [ChirpStack] é uma plataforma de código aberto para redes LoRaWAN que integra o servidor de rede — responsável pela autenticação dos dispositivos, pela gestão das sessões e pela desduplicação dos pacotes vindos dos \textit{gateways} — e o servidor de aplicação, que decodifica o \textit{payload} por funções (\textit{codecs}) configuráveis e o entrega às aplicações por integrações como MQTT.
   \item [ThingSpeak] é uma plataforma de análise e serviço para Internet das Coisas (IoT) que permite coletar, visualizar e analisar dados em tempo real de dispositivos conectados à internet
   \item [E-health] é um termo amplo que designa o uso das tecnologias de informação e comunicação (TICs) aplicadas à saúde.
   \item [M-health] é um subcampo do E-Health que se refere especificamente ao uso de dispositivos móveis e tecnologias sem fio (smartphones, tablets, wearables, sensores portáteis, aplicativos) para apoiar práticas de saúde, prevenção, monitoramento e gestão de doenças.
-  \item [HTTP] é o protocolo de comunicação que permite a troca de informações na Internet, servindo de base para o acesso e a transferência de recursos como páginas web.
-  \item [SQL] é uma linguagem padrão e universal usada para gerenciar dados em bancos de dados relacionais.
   \item [TTN] é uma rede global e colaborativa de Internet das Coisas (IoT) que utiliza a tecnologia LoRaWAN para conectar dispositivos e recolher dados de forma aberta e descentralizada, construída e operada pela sua comunidade de utilizadores.
   \item [OTAA] é o método de ativação mais seguro e recomendado para dispositivos em uma rede LoRaWAN, onde um dispositivo se autentica e obtém um endereço dinâmico e chaves de segurança ("sessão") negociando um processo de adesão com o servidor de rede, em vez de ter essas informações pré-configuradas no hardware.
   \item [MQTT] é um protocolo de mensagens de publicação/assinatura, leve e padrão, usado principalmente para a Internet das Coisas (IoT).
+  \item [Ingestão de dados] é a etapa de um sistema em que os dados produzidos por uma fonte externa são recebidos, validados, transformados e persistidos no repositório de destino. Neste trabalho, o serviço de ingestão (\textit{ingestor}) assina o \textit{broker} MQTT do \textit{ChirpStack}, interpreta os eventos de \textit{uplink} e os grava no banco de dados em nuvem.
   % \item [] 
   % \item [] 
   % \item [] 
