@@ -351,7 +351,7 @@ A integração entre a infraestrutura \textit{LoRaWAN} e a aplicação foi reali
 \subsection{Ingestor MQTT}
 \label{sec:ingestor}
 
-O ingestor inscreveu no \textit{broker} \acs{MQTT} do \textit{ChirpStack} e, a cada mensagem de \textit{uplink}, executa: a identificação do dispositivo de origem pelo seu \textit{DevEUI}; a verificação do paciente a ele vinculado; a determinação do tipo de evento de maior prioridade clínica a partir da máscara de \textit{flags}; e a gravação do evento cardíaco no banco de dados. Quando o evento é classificado como crítico, o ingestor registra também os eventos de alerta destinados aos profissionais de saúde ativos da respectiva instituição. Para conter o custo de operação da plataforma em nuvem, o serviço foi parametrizado de modo a permitir, opcionalmente, o descarte dos segmentos normais e a restrição das notificações apenas aos eventos críticos.
+O ingestor inscreveu no \textit{broker} \acs{MQTT} do \textit{ChirpStack} e, a cada mensagem de \textit{uplink}, executa: a identificação do dispositivo de origem pelo seu \textit{DevEUI}; a verificação do paciente a ele vinculado; a determinação do tipo de evento segundo a ordem de precedência adotada, a partir da máscara de \textit{flags}; e a gravação do evento cardíaco no banco de dados. Quando o evento é classificado como crítico, o ingestor registra também os eventos de alerta destinados aos profissionais de saúde ativos da respectiva instituição. Para conter o custo de operação da plataforma em nuvem, o serviço foi parametrizado de modo a permitir, opcionalmente, o descarte dos segmentos normais e a restrição das notificações apenas aos eventos críticos.
 
 \subsection{Banco de Dados e Modelo de Dados}
 \label{sec:bancoDados}
@@ -430,7 +430,21 @@ O aplicativo contemplou os fluxos de autenticação (cadastro, \textit{login}, r
     \item \textbf{Notificações}: recebimento de alertas \textit{push} a cada alarme confirmado, viabilizado pelo serviço de notificações do \textit{Expo}.
 \end{itemize}
 
-Como mecanismo de redução de alarmes falsos, o aplicativo incorporou uma regra de confirmação por persistência baseada em janela deslizante. Todos os eventos detectados pelo dispositivo são gravados no banco de dados e exibidos no histórico; a regra atua apenas sobre sua promoção a alarme. Para cada classe de evento, o profissional pode configurar uma condição do tipo $X$ em $N$: por exemplo, exigir que a arritmia sinusal apareça em 10 dos últimos 10 segmentos de um mesmo paciente antes que um novo evento dessa classe seja sinalizado como alarme confirmado. A contagem incide sobre a máscara de anormalidades do segmento, e não sobre a classe atribuída pela regra de precedência (Seção~\ref{sec:resPipeline}): uma anomalia detectada em conjunto com outra mais grave perde o rótulo do evento, mas continua a alimentar o seu próprio contador. Confirmado um alarme, os segmentos por ele consumidos deixam de contar para o seguinte, o que institui um período refratário --- sob anomalia contínua, a repetição fica limitada a um alarme a cada $X$ segmentos, ou cerca de 5 minutos na configuração padrão da arritmia sinusal. Os limiares padrão foram ajustados conforme a gravidade clínica: a parada sinoatrial confirma-se com uma única ocorrência; o bloqueio sinoatrial, a taquicardia e a bradicardia exigem persistência em janelas curtas; e a arritmia sinusal, de menor especificidade, requer a janela inteira. Dessa forma, preservou-se o registro integral dos eventos, distinguindo a detecção de uma anomalia de sua promoção a alerta crítico.
+Como mecanismo de redução de alarmes falsos, o aplicativo incorporou uma regra de confirmação por persistência baseada em janela deslizante. Todos os eventos detectados pelo dispositivo são gravados no banco de dados e exibidos no histórico; a regra atua apenas sobre sua promoção a alarme. Para cada classe de evento, o profissional pode configurar uma condição do tipo $X$ em $N$: a anomalia precisa ter sido detectada em pelo menos $X$ dos $N$ segmentos mais recentes de um mesmo paciente para que um novo evento dessa classe seja sinalizado como alarme confirmado. A contagem incide sobre a máscara de anormalidades do segmento, e não sobre a classe atribuída pela regra de precedência (Seção~\ref{sec:resPipeline}): uma anomalia detectada em conjunto com outra mais grave perde o rótulo do evento, mas continua a alimentar o seu próprio contador. Confirmado um alarme, os segmentos por ele consumidos deixam de contar para o seguinte, o que institui um período refratário --- sob anomalia contínua, a repetição fica limitada a um alarme a cada $X$ segmentos, ou cerca de 5 minutos na configuração padrão da arritmia sinusal. Os limiares padrão, reunidos na Tabela~\ref{tab:alarmePadrao}, acompanham a gravidade clínica de cada classe: a parada sinoatrial, mais grave e específica, confirma-se com uma única detecção; o bloqueio sinoatrial, a taquicardia e a bradicardia exigem persistência em janelas curtas; e a arritmia sinusal, de menor especificidade, requer detecção em toda a janela. Dessa forma, preservou-se o registro integral dos eventos, distinguindo a detecção de uma anomalia de sua promoção a alerta crítico.
+
+\begin{table}[h]
+    \centering
+    \caption{Limiares padrão da regra de confirmação por persistência. A janela é expressa em segmentos de 30~s.}
+    \begin{tabular}{l|c|c}
+        \textbf{Classe} & \textbf{Regra ($X$ de $N$)} & \textbf{Janela} \\ \hline
+        Parada sinoatrial   & 1 de 1   & 30~s \\ \hline
+        Bloqueio sinoatrial & 2 de 3   & 1,5~min \\ \hline
+        Taquicardia         & 3 de 5   & 2,5~min \\ \hline
+        Bradicardia         & 3 de 5   & 2,5~min \\ \hline
+        Arritmia sinusal    & 10 de 10 & 5~min \\
+    \end{tabular}
+    \label{tab:alarmePadrao}
+\end{table}
 
 A Tabela~\ref{tab:casosUso} sintetiza as funcionalidades do sistema sob a perspectiva dos três perfis de usuário, conforme as permissões definidas nas regras de segurança (Seção~\ref{sec:seguranca}).
 
