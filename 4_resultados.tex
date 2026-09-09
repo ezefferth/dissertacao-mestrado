@@ -72,22 +72,7 @@ A investigação atribuiu o fenômeno à ausência de uma referência de modo co
 A revalidação foi conduzida em um teste de bancada com o sistema conectado ao próprio autor. Registraram-se 30~s do sinal bruto de cada derivação, em modo de diagnóstico, sem filtragem. Nesse modo o \textit{firmware} imprime as três derivações a cada amostra, o que excede a capacidade do enlace serial (Seção~\ref{sec:resFirmware}); por isso a ferramenta externa gravou 17.888 amostras no intervalo de 30~s --- cerca de 596 por segundo ---, e não as 19.200 que correspondem à taxa de conversão. A taxa do conversor é fixa em 640~SPS, imposta pelos divisores internos do ADS1293 (Seção~\ref{sec:resTaxa}); o que se reduz é o número de amostras que chegam ao computador, não a cadência com que o conversor as produz. Como a verificação se destinava à morfologia do traçado, e não à sua temporização, a perda não compromete a conclusão; a estimativa de frequência cardíaca dela derivada é, por essa razão, aproximada. Após a correção, a derivação II passou a exibir os complexos QRS de forma nítida e com a polaridade esperada, além das ondas P e T, permitindo a estimativa de uma frequência cardíaca em torno de 90~bpm. Os traçados registrados nesse ensaio não são reproduzidos neste texto: por se tratar de sinal fisiológico humano, sua divulgação depende de apreciação por comitê de ética em pesquisa, à qual o trabalho ainda não foi submetido. Relatam-se, portanto, apenas as grandezas agregadas dele derivadas.
 
 
-Para quantificar o efeito do RLD sobre a interferência da rede elétrica, o teste foi repetido sob duas condições — RLD ativo e RLD desconectado (\texttt{SELRLD = 000}) — mantendo-se inalterados os eletrodos e o ambiente. Estimou-se para derivação II, por análise espectral, a fração da energia do sinal concentrada em torno de 60~Hz em cada derivação, conforme a Tabela~\ref{tab:rld60hz}. A ativação do RLD reduziu a energia de 60~Hz em todas as derivações, com maior efeito na derivação III — a mais sensível ao modo comum —, na qual a fração caiu de 0,13\,\% para 0,03\,\% (redução de aproximadamente 4~vezes; valor eficaz reduzido em cerca de 2,1~vezes). Observa-se que, mesmo sem o RLD, o ruído de 60~Hz manteve-se baixo, indicando um ambiente eletromagneticamente favorável no ensaio; em cenários mais ruidosos, espera-se um benefício proporcionalmente maior do RLD.
-
-\begin{table}[htb]
-\centering
-\caption{Fração da energia do sinal em torno de 60~Hz, por derivação, com o RLD desconectado e ativo (teste de bancada, 30~s por condição).}
-\label{tab:rld60hz}
-\begin{tabular}{l c c c}
-\hline
-\textbf{Derivação} & \textbf{RLD desconectado} & \textbf{RLD ativo} & \textbf{Redução} \\
-\hline
-I   & 0,22\,\% & 0,05\,\% & 4,4$\times$ \\
-II  & 0,05\,\% & 0,01\,\% & 5,0$\times$ \\
-III & 0,13\,\% & 0,03\,\% & 4,3$\times$ \\
-\hline
-\end{tabular}
-\end{table}
+Para quantificar o efeito do RLD sobre a interferência da rede elétrica, o teste foi repetido sob duas condições --- RLD ativo e RLD desconectado (\texttt{SELRLD = 000}) ---, mantendo-se inalterados os eletrodos, o seu posicionamento e o ambiente. Estimou-se, por análise espectral, a fração da energia total do sinal concentrada em torno de 60~Hz. Na derivação II, da qual o detector extrai os intervalos R-R, essa fração caiu de 0,05\,\% com o RLD desconectado para 0,01\,\% com o RLD ativo --- redução de cinco vezes em energia, equivalente a cerca de 2,2 vezes em valor eficaz. Duas ressalvas delimitam o alcance da medida. Mesmo sem o RLD a energia de 60~Hz já era baixa, o que indica um ambiente eletromagneticamente favorável no ensaio; em instalações mais ruidosas espera-se benefício proporcionalmente maior do circuito. E trata-se de uma única aquisição de 30~s por condição, em um único ambiente: o valor quantifica o efeito observado nesta bancada, não uma figura de mérito do sistema.
 
 Cabe destacar que a cadeia de condicionamento digital — composta pelos filtros passa-baixas (40~Hz) e passa-altas (0,5~Hz) descritos na Seção~\ref{sec:condicionamento} — foi assim avaliada sobre um sinal fisiológico real de boa qualidade, confirmando a remoção do desvio de linha de base e a preservação das deflexões de interesse.
 
