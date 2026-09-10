@@ -104,7 +104,7 @@ Todas as figuras foram produzidas pelo autor a partir dos arquivos de estímulo 
 \section{Sinal efetivamente adquirido pelo dispositivo}
 \label{ap:rawAdquirido}
 
-A discrepância registrada na introdução deste apêndice --- a simulação não reproduz, para cinco das seis classes, a falha medida na bancada --- deixa em aberto a questão de \emph{onde}, ao longo da cadeia, a degradação se origina. A acurácia de classificação não a responde: um segmento classificado como bloqueio pode tê-lo sido porque a aquisição perdeu batimentos, porque o algoritmo não os localizou, ou por ambos.
+A discrepância registrada na introdução deste apêndice --- a simulação não reproduz, para cinco das seis classes, a falha medida na bancada --- deixa em aberto a questão de \emph{onde}, ao longo da cadeia, a degradação se origina. A taxa de acerto não a responde: um segmento classificado como bloqueio pode tê-lo sido porque a aquisição perdeu batimentos, porque o algoritmo não os localizou, ou por ambos.
 
 Para dirimi-la, habilitou-se no \textit{firmware} a gravação do conteúdo do \textit{buffer} de detecção --- a sequência de amostras que o algoritmo efetivamente recebe, depois do divisor resistivo, do \acs{AFE} e da cascata de filtros digitais --- e transferiu-se esse conteúdo pela interface serial. Adquiriram-se três segmentos de 30~s do mesmo estímulo normal: sem perturbação, sob interferência de rede de 60~Hz a 30\,\% e sob ruído aleatório de idêntica amplitude. A Figura~\ref{fig:rawAdquirido} apresenta um recorte de 10~s dos três.
 
