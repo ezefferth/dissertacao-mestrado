@@ -206,6 +206,19 @@ Sobre esse segundo conjunto, o sistema novamente classificou corretamente os 180
 Tabela~\ref{tab:metricasClasse} e nenhum erro de processamento, o que indica integridade da
 aquisição ao longo de todos os ensaios.
 
+Cabe uma precisão sobre o alcance desse resultado, que diz respeito à regra de decisão
+então vigente. Estes ensaios foram conduzidos sob o critério de pausa por duração absoluta,
+e o \acs{ECG} de bloqueio foi construído para satisfazê-lo, com pausas na faixa de 4 a 6~s.
+Sobre um ritmo de base de 800~ms, essas pausas equivalem a mais de cinco ciclos cardíacos,
+de modo que a formulação relativa adotada depois (Seção~\ref{sec:resCriterioPausa}) as
+classifica como \emph{parada sinusal}, e não como bloqueio. Reprocessado o mesmo arquivo
+sob a regra final, as janelas de 30~s saem, de fato, como parada. A observação não aponta
+defeito de detecção: ilustra que o material de teste acompanha a definição do critério, e
+que a pausa de um bloqueio não se caracteriza por durar um certo número de segundos, mas
+por fechar um número inteiro de ciclos do ritmo que a precede. É o mesmo fenômeno que, em
+sentido inverso, impedia o reconhecimento das pausas do \acs{ECG} cedido pelo orientador
+(Seção~\ref{sec:resOrigLimpo}).
+
 \begin{table}[htb]
 \centering
 \caption{Matriz de confusão dos ensaios sobre o \acs{ECG} sintetizado neste trabalho (30 segmentos por classe; linha = classe esperada, coluna = classe detectada).}
